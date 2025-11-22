@@ -7,7 +7,9 @@ This repository contains my submissions for the **Murf AI Voice Agent Challenge*
 You can watch my Day 1 demo interaction with the Murf Falcon Voice Agent here:
 
 👉 **[Click to Watch Day 1-Demo Video](demo/day1-demo-murf-falcon%20-%20Made%20with%20Clipchamp.mp4)**
-👉 **[Click to Watch Day 2 Demo Video](demo/Day%202%20-%20demo_murf_falcon%20-%20Made%20with%20Clipchamp.mp4)**
+
+👉 **[Click to Watch Day 2 Demo Video](demo/Day2%20demo_murf_falcon%20-%20Made%20with%20Clipchamp.mp4)**
+
 
 
 *(Note: GitHub does not preview MP4 videos directly — click “View Raw” to download and play.)*
