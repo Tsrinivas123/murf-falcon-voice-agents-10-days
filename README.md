@@ -11,7 +11,6 @@ murf-falcon-voice-agents-10-days/
 ├── frontend/ # Next.js/React frontend for real-time voice interaction
 ├── start_app.sh # Script to run entire project
 └── demo/ # Demo videos for each day's task
-
 yaml
 Copy code
 
