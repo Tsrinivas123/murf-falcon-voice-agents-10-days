@@ -2,6 +2,13 @@
 
 This repository contains my submissions for the **Murf AI Voice Agent Challenge**, where I build **10 AI Voice Agents in 10 Days** using the fastest TTS engine — **Murf Falcon** and **LiveKit Agents**.
 
+## 🎥 Day 1 Demo Video
+
+You can watch my Day 1 demo interaction with the Murf Falcon Voice Agent here:
+
+👉 **[Click to Watch Demo Video](demo/day1-demo-murf-falcon.mp4)**
+
+*(Note: GitHub does not preview MP4 videos directly — click “View Raw” to download and play.)*
 
 
 ## 🚀 Project Structure
