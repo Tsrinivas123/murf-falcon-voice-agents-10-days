@@ -6,15 +6,13 @@ This repository contains my submissions for the **Murf AI Voice Agent Challenge*
 
 ## 🚀 Project Structure
 
+```
 murf-falcon-voice-agents-10-days/
-├── backend/ # LiveKit Agents backend with Murf Falcon TTS
-├── frontend/ # Next.js/React frontend for real-time voice interaction
-├── start_app.sh # Script to run entire project
-└── demo/ # Demo videos for each day's task
-yaml
-Copy code
-
-'''
+├── backend/          # LiveKit Agents backend with Murf Falcon TTS
+├── frontend/         # Next.js/React frontend for real-time voice interaction
+├── start_app.sh      # Script to run entire project
+└── demo/             # Demo videos for each day's task
+```
 
 ## 🧠 Tech Stack
 
