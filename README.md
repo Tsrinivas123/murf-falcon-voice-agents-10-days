@@ -2,20 +2,32 @@
 
 This repository contains my submissions for the **Murf AI Voice Agent Challenge**, where I build **10 AI Voice Agents in 10 Days** using the fastest TTS engine — **Murf Falcon** and **LiveKit Agents**.
 
----
+## 🎥 Day 1 Demo Video
+
+You can watch my Day 1 demo interaction with the Murf Falcon Voice Agent here:
+
+👉 **[Click to Watch Day-1 Demo Video](demo/day1-demo-murf-falcon%20-%20Made%20with%20Clipchamp.mp4)**
+
+👉 **[Click to Watch Day 2 Demo Video](demo/Day%202%20-%20demo_murf_falcon%20-%20Made%20with%20Clipchamp.mp4)**
+
+
+
+
+
+
+*(Note: GitHub does not preview MP4 videos directly — click “View Raw” to download and play.)*
+
+
 
 ## 🚀 Project Structure
 
+```
 murf-falcon-voice-agents-10-days/
-├── backend/ # LiveKit Agents backend with Murf Falcon TTS
-├── frontend/ # Next.js/React frontend for real-time voice interaction
-├── start_app.sh # Script to run entire project
-└── demo/ # Demo videos for each day's task
-
-yaml
-Copy code
-
----
+├── backend/          # LiveKit Agents backend with Murf Falcon TTS
+├── frontend/         # Next.js/React frontend for real-time voice interaction
+├── start_app.sh      # Script to run entire project
+└── demo/             # Demo videos for each day's task
+```
 
 ## 🧠 Tech Stack
 
