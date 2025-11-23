@@ -17,6 +17,9 @@ You can watch my Day 1 demo interaction with the Murf Falcon Voice Agent here:
 
 *(Note: GitHub does not preview MP4 videos directly — click “View Raw” to download and play.)*
 
+commad to start backend
+1-->  & .\.venv\Scripts\Activate.ps1
+2--> python -m src.agent start
 
 
 ## 🚀 Project Structure
