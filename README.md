@@ -10,7 +10,7 @@ You can watch my Day 1 demo interaction with the Murf Falcon Voice Agent here:
 
 👉 **[Click to Watch Day 2 Demo Video](demo/Day%202%20-%20demo_murf_falcon%20-%20Made%20with%20Clipchamp.mp4)**
 
-👉 **[Click to Watch Day 3 Demo Video](demo/day3%20-%20demo_murf_falcon%20-%20Made%20with%20Clipchamp.mp4)**
+👉 **[Click to Watch Day 3 Demo Video](demo/day%203%20-%20demo_murf_falcon%20-%20Made%20with%20Clipchamp.mp4)**
 
 
 
