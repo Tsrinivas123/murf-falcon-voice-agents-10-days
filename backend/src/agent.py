@@ -1,139 +1,650 @@
+# backend/src/agent_day4.py
+"""
+Day 4 - Teach-the-Tutor Agent (fixed version)
+
+- Voices (Murf Falcon):
+    learn     -> Matthew
+    quiz      -> Alicia
+    teach_back-> Ken
+
+- STT: Deepgram nova-3
+- LLM: Google Gemini 2.5 Flash
+- Loads content from backend/shared-data/day4_tutor_content.json
+- Persists mastery to backend/tutor_state/tutor_state.json
+- Passes RoomInputOptions to session.start (LiveKit API compatibility)
+"""
+
+import os
+import re
+import json
 import logging
+from typing import List, Dict, Any, Optional
+from datetime import datetime
 
 from dotenv import load_dotenv
+
+# Database import
+try:
+    from .database import init_db, save_mastery, load_mastery, log_session
+    USE_DATABASE = True
+except ImportError:
+    USE_DATABASE = False
+
+# livekit agents imports
 from livekit.agents import (
     Agent,
     AgentSession,
     JobContext,
     JobProcess,
-    MetricsCollectedEvent,
     RoomInputOptions,
     WorkerOptions,
     cli,
-    metrics,
-    tokenize,
-    # function_tool,
-    # RunContext
+    RunContext,
+    function_tool,
 )
-from livekit.plugins import murf, silero, google, deepgram, noise_cancellation
+from livekit.plugins import google, murf, deepgram, silero, noise_cancellation
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
-logger = logging.getLogger("agent")
-
 load_dotenv(".env.local")
+logger = logging.getLogger("day4.tutor")
+
+# -----------------------
+# Paths & constants
+# -----------------------
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+SHARED_DATA_DIR = os.path.join(ROOT, "shared-data")
+CONTENT_PATH = os.path.join(SHARED_DATA_DIR, "day4_tutor_content.json")
+STATE_DIR = os.path.join(ROOT, "tutor_state")
+os.makedirs(STATE_DIR, exist_ok=True)
+STATE_PATH = os.path.join(STATE_DIR, "tutor_state.json")
+
+# Voice mapping
+VOICE_LEARN = "Matthew"
+VOICE_QUIZ = "Alicia"      # Quiz voice -> Alicia
+VOICE_TEACH = "Ken"
+
+# Optional alternate Murf voice id (use if simple name doesn't work)
+VOICE_QUIZ_ALT = "en-US-alicia"
 
 
-class Assistant(Agent):
-    def __init__(self) -> None:
-        super().__init__(
-            instructions="""You are a helpful voice AI assistant. The user is interacting with you via voice, even if you perceive the conversation as text.
-            You eagerly assist users with their questions by providing information from your extensive knowledge.
-            Your responses are concise, to the point, and without any complex formatting or punctuation including emojis, asterisks, or other symbols.
-            You are curious, friendly, and have a sense of humor.""",
+# -----------------------
+# Helpers: load/save
+# -----------------------
+def load_content() -> List[Dict[str, Any]]:
+    if not os.path.exists(CONTENT_PATH):
+        logger.error("Day4 content file not found at %s", CONTENT_PATH)
+        return []
+    with open(CONTENT_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def load_state() -> Dict[str, Any]:
+    if USE_DATABASE:
+        try:
+            mastery = load_mastery()
+            return {"last_mode": None, "last_concept": None, "mastery": mastery}
+        except Exception as e:
+            logger.warning("Database load failed: %s", e)
+    
+    # Fallback to JSON
+    if not os.path.exists(STATE_PATH):
+        return {"last_mode": None, "last_concept": None, "mastery": {}}
+    try:
+        with open(STATE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning("Failed to load state: %s", e)
+        return {"last_mode": None, "last_concept": None, "mastery": {}}
+
+def save_state(state: Dict[str, Any]):
+    if USE_DATABASE:
+        try:
+            mastery = state.get("mastery", {})
+            for concept_id, data in mastery.items():
+                save_mastery(concept_id, data)
+            return
+        except Exception as e:
+            logger.warning("Database save failed: %s", e)
+    
+    # Fallback to JSON
+    try:
+        with open(STATE_PATH, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.error("Failed to save state: %s", e)
+
+# -----------------------
+# Voice switching helper
+# -----------------------
+def switch_session_voice(session: AgentSession, new_voice: str):
+    """Switch the session's TTS voice by replacing the TTS instance"""
+    try:
+        logger.info(f"🎤 Switching session voice to: {new_voice}")
+        logger.info(f"Session type: {type(session)}")
+        logger.info(f"Session attributes: {[attr for attr in dir(session) if 'tts' in attr.lower()]}")
+        
+        new_tts = murf.TTS(
+            voice=new_voice,
+            style="Conversation",
+            text_pacing=True
         )
+        
+        # Try multiple ways to replace TTS
+        updated = False
+        if hasattr(session, '_tts'):
+            old_tts = getattr(session, '_tts', None)
+            session._tts = new_tts
+            logger.info(f"Updated session._tts from {old_tts} to {new_tts}")
+            updated = True
+            
+        if hasattr(session, 'tts'):
+            old_tts = getattr(session, 'tts', None)
+            session.tts = new_tts
+            logger.info(f"Updated session.tts from {old_tts} to {new_tts}")
+            updated = True
+        
+        # Force update internal TTS references
+        try:
+            if hasattr(session, '_agent_output') and hasattr(session._agent_output, '_tts'):
+                session._agent_output._tts = new_tts
+                logger.info("Updated session._agent_output._tts")
+                updated = True
+        except Exception as e:
+            logger.warning(f"Could not update _agent_output._tts: {e}")
+            
+        if updated:
+            logger.info(f"✓ Session voice switched to {new_voice}")
+        else:
+            logger.warning("No TTS attributes found to update")
+            
+        return updated
+    except Exception as e:
+        logger.error(f"Voice switch failed: {e}", exc_info=True)
+        return False
 
-    # To add tools, use the @function_tool decorator.
-    # Here's an example that adds a simple weather tool.
-    # You also have to add `from livekit.agents import function_tool, RunContext` to the top of this file
-    # @function_tool
-    # async def lookup_weather(self, context: RunContext, location: str):
-    #     """Use this tool to look up current weather information in the given location.
-    #
-    #     If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
-    #
-    #     Args:
-    #         location: The location to look up weather information for (e.g. city name)
-    #     """
-    #
-    #     logger.info(f"Looking up weather for {location}")
-    #
-    #     return "sunny with a temperature of 70 degrees."
+# -----------------------
+# Small evaluation helpers
+# -----------------------
+def score_explanation(reference: str, user_text: str) -> Dict[str, Any]:
+    """Advanced explanation scoring with detailed feedback."""
+    def words(s):
+        return re.findall(r"\w+", (s or "").lower())
+    
+    ref_words = set(words(reference))
+    user_words = set(words(user_text))
+    
+    if not ref_words:
+        return {"score": 0, "feedback": "No reference available to score against."}
+    
+    if not user_words:
+        return {"score": 0, "feedback": "Please provide an explanation to evaluate."}
+    
+    # Calculate different scoring components
+    common = ref_words & user_words
+    coverage_ratio = len(common) / len(ref_words)  # How much of reference is covered
+    precision_ratio = len(common) / len(user_words) if user_words else 0  # How accurate the explanation is
+    
+    # Key concept detection (look for important programming terms)
+    key_terms = {"variable", "loop", "function", "condition", "if", "else", "for", "while", "def", "return"}
+    ref_key_terms = ref_words & key_terms
+    user_key_terms = user_words & key_terms
+    key_term_score = len(user_key_terms & ref_key_terms) / max(len(ref_key_terms), 1) if ref_key_terms else 1
+    
+    # Combined score with weights
+    score = int(min(100, round(
+        coverage_ratio * 40 +      # 40% for covering reference concepts
+        precision_ratio * 30 +     # 30% for accuracy (not adding irrelevant info)
+        key_term_score * 30        # 30% for using correct terminology
+    )))
+    
+    # Detailed feedback based on performance
+    if score >= 90:
+        fb = "Outstanding! You demonstrated deep understanding with precise terminology."
+    elif score >= 80:
+        fb = "Excellent! You covered the key concepts clearly and accurately."
+    elif score >= 70:
+        fb = "Good work! You understand the main ideas. Try to be more precise with technical terms."
+    elif score >= 60:
+        fb = "Decent attempt! You got some key points but missed important details. Review the concept again."
+    elif score >= 40:
+        fb = "You're on the right track but need to cover more core concepts. Focus on the main definition."
+    else:
+        fb = "Keep trying! Make sure to explain the basic purpose and give a simple example."
+    
+    # Add specific suggestions
+    missing_key_terms = ref_key_terms - user_key_terms
+    if missing_key_terms and score < 80:
+        fb += f" Try mentioning: {', '.join(list(missing_key_terms)[:3])}."
+    
+    return {"score": score, "feedback": fb, "coverage": round(coverage_ratio * 100), "precision": round(precision_ratio * 100)}
+
+# -----------------------
+# Tools exposed to LLM / agent flow
+# -----------------------
+@function_tool
+async def list_concepts(ctx: RunContext[dict]):
+    """List all available programming concepts that can be learned."""
+    content = load_content()
+    if not content:
+        return "No concepts available."
+    lines = [f"- {c['id']}: {c.get('title','')}" for c in content]
+    return "Available concepts:\n" + "\n".join(lines)
+
+@function_tool
+async def set_concept(ctx: RunContext[dict], concept_id: str):
+    """Select a concept by its ID to work with (e.g., 'variables', 'loops')."""
+    content = load_content()
+    cid = (concept_id or "").strip()
+    match = next((c for c in content if c["id"] == cid), None)
+    if not match:
+        return f"Concept '{cid}' not found. Use list_concepts to see IDs."
+    ctx.userdata["tutor"]["concept_id"] = cid
+    state = load_state()
+    state["last_concept"] = cid
+    save_state(state)
+    return f"Concept set to: {match.get('title', cid)}"
 
 
+
+@function_tool
+async def explain_concept(ctx: RunContext[dict]):
+    """Explain the currently selected concept in detail."""
+    cid = ctx.userdata["tutor"].get("concept_id")
+    if not cid:
+        return "No concept selected. Use set_concept to pick one."
+    content = load_content()
+    match = next((c for c in content if c["id"] == cid), None)
+    if not match:
+        return "Selected concept not found."
+    # Mark explained count
+    state = load_state()
+    state.setdefault("mastery", {})
+    ms = state["mastery"].get(cid, {"times_explained": 0, "times_quizzed": 0, "times_taught_back": 0, "last_score": None, "avg_score": None})
+    ms["times_explained"] = ms.get("times_explained", 0) + 1
+    state["mastery"][cid] = ms
+    save_state(state)
+    return f"{match.get('title')}: {match.get('summary')}"
+
+@function_tool
+async def get_mcq(ctx: RunContext[dict]):
+    """Get the next multiple-choice quiz question for the selected concept."""
+    cid = ctx.userdata["tutor"].get("concept_id")
+    if not cid:
+        return {"error": "No concept selected"}
+    content = load_content()
+    match = next((c for c in content if c["id"] == cid), None)
+    if not match:
+        return {"error": "Concept not found"}
+    questions = match.get("quiz", []) or match.get("mcq", [])
+    if not questions:
+        return {"error": "No quiz questions for this concept"}
+    # maintain rotation index in userdata
+    idx = ctx.userdata["tutor"].get("quiz_index", 0) % len(questions)
+    ctx.userdata["tutor"]["quiz_index"] = idx + 1
+    q = questions[idx]
+    return {"question": q["question"], "options": q["options"], "answer": q["answer"], "index": idx}
+
+@function_tool
+async def evaluate_mcq(ctx: RunContext[dict], user_answer: str):
+    """Score the user's multiple-choice quiz answer and return feedback."""
+    cid = ctx.userdata["tutor"].get("concept_id")
+    if not cid:
+        return {"error": "No concept selected"}
+    content = load_content()
+    match = next((c for c in content if c["id"] == cid), None)
+    if not match:
+        return {"error": "Concept not found"}
+    # fetch last asked question index
+    idx = (ctx.userdata["tutor"].get("quiz_index", 1) - 1)
+    questions = match.get("quiz", []) or match.get("mcq", [])
+    if not questions:
+        return {"error": "No questions"}
+    if idx < 0 or idx >= len(questions):
+        idx = max(0, len(questions) - 1)
+    q = questions[idx]
+    correct_i = q["answer"]
+    options = q["options"]
+    ua = (user_answer or "").lower().strip()
+
+    # 1) letter (a/b/c/d)
+    sel = None
+    m = re.search(r"\b([abcd])\b", ua)
+    if m:
+        sel = ord(m.group(1)) - 97
+    else:
+        # number 1-4
+        m2 = re.search(r"\b([1-4])\b", ua)
+        if m2:
+            sel = int(m2.group(1)) - 1
+
+    # 2) match option text
+    if sel is None:
+        for i, opt in enumerate(options):
+            if opt.lower() in ua:
+                sel = i
+                break
+    # 3) partial overlap heuristic
+    if sel is None:
+        ua_words = set(re.findall(r"\w+", ua))
+        best_i = None
+        best_score = 0
+        for i, opt in enumerate(options):
+            opt_words = set(re.findall(r"\w+", opt.lower()))
+            common = ua_words & opt_words
+            if len(common) > best_score:
+                best_score = len(common)
+                best_i = i
+        if best_score >= 1:
+            sel = best_i
+
+    # 4) final fallback check for any keyword from correct option
+    if sel is None:
+        for w in re.findall(r"\w+", options[correct_i].lower()):
+            if w in ua:
+                sel = correct_i
+                break
+
+    correct = (sel == correct_i)
+    feedback = ("Correct — well done!" if correct else f"Not quite. Correct answer: {options[correct_i]}.")
+    # update mastery
+    state = load_state()
+    state.setdefault("mastery", {})
+    ms = state["mastery"].get(cid, {"times_explained": 0, "times_quizzed": 0, "times_taught_back": 0, "last_score": None, "avg_score": None})
+    ms["times_quizzed"] = ms.get("times_quizzed", 0) + 1
+    sc = 100 if correct else 0
+    ms["last_score"] = sc
+    prev = ms.get("avg_score")
+    ms["avg_score"] = sc if prev is None else round((prev + sc) / 2, 1)
+    state["mastery"][cid] = ms
+    save_state(state)
+
+    return {"correct": bool(correct), "selected": sel, "correct_index": correct_i, "feedback": feedback}
+
+@function_tool
+async def evaluate_teachback(ctx: RunContext[dict], explanation: str):
+    """Score the user's explanation in teach-back mode and return feedback."""
+    cid = ctx.userdata["tutor"].get("concept_id")
+    if not cid:
+        return {"error": "No concept selected"}
+    content = load_content()
+    match = next((c for c in content if c["id"] == cid), None)
+    if not match:
+        return {"error": "Concept not found"}
+    result = score_explanation(match.get("summary", ""), explanation or "")
+    # update mastery
+    state = load_state()
+    state.setdefault("mastery", {})
+    ms = state["mastery"].get(cid, {"times_explained": 0, "times_quizzed": 0, "times_taught_back": 0, "last_score": None, "avg_score": None})
+    ms["times_taught_back"] = ms.get("times_taught_back", 0) + 1
+    ms["last_score"] = result["score"]
+    prev = ms.get("avg_score")
+    ms["avg_score"] = result["score"] if prev is None else round((prev + result["score"]) / 2, 1)
+    state["mastery"][cid] = ms
+    save_state(state)
+    return result
+
+@function_tool
+async def get_mastery_report(ctx: RunContext[dict]):
+    """Get a detailed report of the user's mastery progress across all concepts."""
+    state = load_state()
+    mastery = state.get("mastery", {})
+    if not mastery:
+        return "No mastery data yet."
+    
+    lines = ["📊 MASTERY REPORT:"]
+    for cid, info in mastery.items():
+        avg = info.get('avg_score', 0) or 0
+        status = "🟢 Strong" if avg >= 80 else "🟡 Developing" if avg >= 60 else "🔴 Needs Work"
+        lines.append(f"{cid}: {status} (avg: {avg}%, attempts: {info.get('times_quizzed', 0) + info.get('times_taught_back', 0)})")
+    return "\n".join(lines)
+
+@function_tool
+async def get_weakness_analysis(ctx: RunContext[dict]):
+    """Analyze which concepts the user is weakest at and suggest focus areas."""
+    state = load_state()
+    mastery = state.get("mastery", {})
+    if not mastery:
+        return "No learning data yet. Try some quizzes or teach-back sessions first!"
+    
+    # Sort concepts by average score (lowest first)
+    concept_scores = []
+    for cid, info in mastery.items():
+        avg_score = info.get('avg_score', 0) or 0
+        attempts = info.get('times_quizzed', 0) + info.get('times_taught_back', 0)
+        if attempts > 0:  # Only include concepts with attempts
+            concept_scores.append((cid, avg_score, attempts))
+    
+    if not concept_scores:
+        return "No scored attempts yet. Try taking some quizzes!"
+    
+    concept_scores.sort(key=lambda x: x[1])  # Sort by score (lowest first)
+    
+    lines = ["🎯 WEAKNESS ANALYSIS:"]
+    
+    # Show weakest concepts
+    weakest = concept_scores[:3]  # Top 3 weakest
+    lines.append("\n📉 Focus on these concepts:")
+    for i, (cid, score, attempts) in enumerate(weakest, 1):
+        lines.append(f"{i}. {cid}: {score}% avg ({attempts} attempts)")
+    
+    # Suggest practice plan
+    if weakest:
+        worst_concept = weakest[0][0]
+        lines.append(f"\n💡 RECOMMENDATION: Focus on '{worst_concept}' - try teach-back mode for deeper understanding!")
+    
+    return "\n".join(lines)
+
+@function_tool
+async def get_learning_path(ctx: RunContext[dict]):
+    """Suggest a personalized learning path based on mastery levels."""
+    state = load_state()
+    mastery = state.get("mastery", {})
+    content = load_content()
+    
+    # Define learning path order (beginner -> advanced)
+    learning_order = ["variables", "conditions", "loops", "functions"]
+    
+    lines = ["🛤️ PERSONALIZED LEARNING PATH:"]
+    
+    for i, concept_id in enumerate(learning_order, 1):
+        concept_info = next((c for c in content if c["id"] == concept_id), None)
+        if not concept_info:
+            continue
+            
+        title = concept_info.get("title", concept_id)
+        mastery_info = mastery.get(concept_id, {})
+        avg_score = mastery_info.get('avg_score', 0) or 0
+        attempts = mastery_info.get('times_quizzed', 0) + mastery_info.get('times_taught_back', 0)
+        
+        if avg_score >= 80:
+            status = "✅ Mastered"
+        elif avg_score >= 60:
+            status = "🔄 Review Needed"
+        elif attempts > 0:
+            status = "❌ Struggling"
+        else:
+            status = "⭐ Not Started"
+            
+        lines.append(f"{i}. {title}: {status}")
+        
+        # Add specific recommendations
+        if avg_score < 60 and attempts > 0:
+            lines.append(f"   → Try teach-back mode for {concept_id}")
+        elif attempts == 0:
+            lines.append(f"   → Start with learn mode for {concept_id}")
+    
+    return "\n".join(lines)
+
+
+
+@function_tool
+async def set_mode(ctx: RunContext[dict], mode: str):
+    """Change the learning mode and switch voice: 'learn', 'quiz', or 'teach_back'."""
+    m = (mode or "").strip().lower()
+    if m not in ("learn", "quiz", "teach_back"):
+        return "Unknown mode. Choose 'learn', 'quiz', or 'teach_back'."
+    
+    ctx.userdata["tutor"]["mode"] = m
+    state = load_state()
+    state["last_mode"] = m
+    save_state(state)
+    
+    # Switch voice based on mode
+    voice_map = {
+        "learn": VOICE_LEARN,
+        "quiz": VOICE_QUIZ,
+        "teach_back": VOICE_TEACH,
+    }
+    
+    new_voice = voice_map.get(m, VOICE_LEARN)
+    session_ref = ctx.userdata.get('_session_ref')
+    if session_ref:
+        switch_session_voice(session_ref, new_voice)
+    
+    return f"Mode set to: {m}. Voice switched to {new_voice}."
+
+# -----------------------
+# Single Tutor Agent with Voice Switching
+# -----------------------
+class TutorAgent(Agent):
+    """Active Recall Tutor with dynamic voice switching"""
+    def __init__(self, content: List[dict]):
+        instructions = """You are an Active Recall Tech Tutor with three modes:
+
+LEARN MODE (Matthew voice): Explain concepts clearly and thoroughly
+QUIZ MODE (Anusha voice): Ask multiple-choice questions energetically  
+TEACH-BACK MODE (Ken voice): Listen to student explanations supportively
+
+ADVANCED FEATURES:
+- get_weakness_analysis(): Show which concepts need most work
+- get_learning_path(): Suggest personalized study plan
+- get_mastery_report(): Detailed progress tracking
+
+When user wants concepts:
+1. Call list_concepts() to show available topics
+2. Ask which concept they want
+
+When user selects concept:
+1. Call set_concept(concept_id)
+2. Ask which mode they prefer
+
+When user chooses mode:
+1. Call set_mode(mode) - this switches voice automatically
+2. Execute the mode:
+   - Learn: Call explain_concept()
+   - Quiz: Call get_mcq() then evaluate_mcq()
+   - Teach-back: Ask for explanation then evaluate_teachback()
+
+ADAPTIVE COACHING:
+- If user asks about progress → call get_mastery_report()
+- If user asks what to focus on → call get_weakness_analysis()
+- If user wants study plan → call get_learning_path()
+- Use mastery data to suggest next steps
+
+RULES:
+- ALWAYS use tools, never make up responses
+- Keep responses SHORT and mode-appropriate
+- Voice changes automatically with set_mode
+- Adapt personality to current mode
+- Proactively suggest weakness analysis after poor performance"""
+
+        super().__init__(
+            instructions=instructions,
+            tools=[
+                list_concepts,
+                set_concept,
+                set_mode,
+                explain_concept,
+                get_mcq,
+                evaluate_mcq,
+                evaluate_teachback,
+                get_mastery_report,
+                get_weakness_analysis,
+                get_learning_path
+            ]
+        )
+        self.content = content
+        self._session = None
+    
+
+
+# -----------------------
+# Prewarm function
+# -----------------------
 def prewarm(proc: JobProcess):
-    proc.userdata["vad"] = silero.VAD.load()
+    try:
+        proc.userdata["vad"] = silero.VAD.load()
+    except Exception as e:
+        logger.warning("VAD prewarm failed: %s", e)
+        proc.userdata["vad"] = None
 
-
+# -----------------------
+# Entrypoint
+# -----------------------
 async def entrypoint(ctx: JobContext):
-    # Logging setup
-    # Add any other context you want in all log entries here
-    ctx.log_context_fields = {
-        "room": ctx.room.name,
+    """Main entry point for the tutor agent"""
+    ctx.log_context_fields = {"room": ctx.room.name}
+    logger.info("Starting Day4 tutor - room %s", ctx.room.name)
+    
+    # Initialize database if available
+    if USE_DATABASE:
+        try:
+            init_db()
+            logger.info("Database initialized")
+        except Exception as e:
+            logger.warning("Database init failed: %s", e)
+
+    # Load content from persistent storage
+    content = load_content()
+    if not content:
+        logger.error("No content loaded. Please add day4_tutor_content.json")
+
+    # Initialize user data
+    userdata = {
+        "tutor": {
+            "mode": None,
+            "concept_id": None,
+            "quiz_index": 0,
+        },
+        "history": []
     }
 
-    # Set up a voice AI pipeline using OpenAI, Cartesia, AssemblyAI, and the LiveKit turn detector
+    # Create session with initial TTS
     session = AgentSession(
-        # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
-        # See all available models at https://docs.livekit.io/agents/models/stt/
         stt=deepgram.STT(model="nova-3"),
-        # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
-        # See all available models at https://docs.livekit.io/agents/models/llm/
-        llm=google.LLM(
-                model="gemini-2.5-flash",
-            ),
-        # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
-        # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
-        tts=murf.TTS(
-                voice="en-US-matthew", 
-                style="Conversation",
-                tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
-                text_pacing=True
-            ),
-        # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
-        # See more at https://docs.livekit.io/agents/build/turns
+        llm=google.LLM(model="gemini-2.5-flash", api_key=os.getenv("GOOGLE_API_KEY")),
+        tts=murf.TTS(voice=VOICE_LEARN, style="Conversation", text_pacing=True),
         turn_detection=MultilingualModel(),
-        vad=ctx.proc.userdata["vad"],
-        # allow the LLM to generate a response while waiting for the end of turn
-        # See more at https://docs.livekit.io/agents/build/audio/#preemptive-generation
-        preemptive_generation=True,
+        vad=ctx.proc.userdata.get("vad"),
+        userdata=userdata,
     )
 
-    # To use a realtime model instead of a voice pipeline, use the following session setup instead.
-    # (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
-    # 1. Install livekit-agents[openai]
-    # 2. Set OPENAI_API_KEY in .env.local
-    # 3. Add `from livekit.plugins import openai` to the top of this file
-    # 4. Use the following session setup instead of the version above
-    # session = AgentSession(
-    #     llm=openai.realtime.RealtimeModel(voice="marin")
-    # )
+    # Create tutor agent
+    agent = TutorAgent(content)
+    agent._session = session  # Pass session to agent for voice switching
 
-    # Metrics collection, to measure pipeline performance
-    # For more information, see https://docs.livekit.io/agents/build/metrics/
-    usage_collector = metrics.UsageCollector()
-
-    @session.on("metrics_collected")
-    def _on_metrics_collected(ev: MetricsCollectedEvent):
-        metrics.log_metrics(ev.metrics)
-        usage_collector.collect(ev.metrics)
-
-    async def log_usage():
-        summary = usage_collector.get_summary()
-        logger.info(f"Usage: {summary}")
-
-    ctx.add_shutdown_callback(log_usage)
-
-    # # Add a virtual avatar to the session, if desired
-    # # For other providers, see https://docs.livekit.io/agents/models/avatar/
-    # avatar = hedra.AvatarSession(
-    #   avatar_id="...",  # See https://docs.livekit.io/agents/models/avatar/plugins/hedra
-    # )
-    # # Start the avatar and wait for it to join
-    # await avatar.start(session, room=ctx.room)
-
-    # Start the session, which initializes the voice pipeline and warms up the models
+    # Start session (MUST complete before event handlers are registered)
     await session.start(
-        agent=Assistant(),
+        agent=agent,
         room=ctx.room,
         room_input_options=RoomInputOptions(
-            # For telephony applications, use `BVCTelephony` for best results
-            noise_cancellation=noise_cancellation.BVC(),
-        ),
+            noise_cancellation=noise_cancellation.BVC()
+        )
     )
 
-    # Join the room and connect to the user
+    # Pass session reference for voice switching
+    agent._session = session
+    session.userdata['_session_ref'] = session
+
+    # Connect to room
     await ctx.connect()
 
-
+# -----------------------
+# Run worker
+# -----------------------
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
+    cli.run_app(
+        WorkerOptions(
+            entrypoint_fnc=entrypoint,
+            prewarm_fnc=prewarm
+        )
+    )
