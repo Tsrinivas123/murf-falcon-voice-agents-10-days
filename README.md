@@ -1,119 +1,126 @@
-# Murf Falcon Voice Agents — 10 Days Challenge
+🌿 Day 3 — Wellness Companion Agent
 
-This repository contains my submissions for the **Murf AI Voice Agent Challenge**, where I build **10 AI Voice Agents in 10 Days** using the fastest TTS engine — **Murf Falcon** and **LiveKit Agents**.
+AI agent that acts as your personal wellness buddy — tracking mood, offering meditation, hydration reminders, and giving positive support.
 
-## 🎥 Day 1 Demo Video
+📌 Overview
 
-You can watch my Day 1 demo interaction with the Murf Falcon Voice Agent here:
+The Wellness Companion Agent interacts with users via voice or text and helps them improve daily mental & physical well-being.
+It uses state management, stores user logs in JSON, and gives context-aware responses.
 
-👉 **[Click to Watch Day-1 Demo Video](demo/day1-demo-murf-falcon%20-%20Made%20with%20Clipchamp.mp4)**
+✨ Features
+🧠 Core Capabilities
 
-👉 **[Click to Watch Day 2 Demo Video](demo/Day%202%20-%20demo_murf_falcon%20-%20Made%20with%20Clipchamp.mp4)**
+Mood tracking (happy, low, stressed, neutral, etc.)
 
+Hydration reminders
 
+Guided breathing & meditation prompts
 
+Daily wellness score summary
 
+Saves sessions to JSON
 
+Voice input/output (TTS + STT) enabled
 
-*(Note: GitHub does not preview MP4 videos directly — click “View Raw” to download and play.)*
+Simple flow-based state machine
 
-commad to start backend
-1-->  & .\.venv\Scripts\Activate.ps1
-2--> python -m src.agent start
+🎙️ Interaction Modes
 
+Text chat
 
-## 🚀 Project Structure
+Voice mode (speech-to-text + text-to-speech)
 
-```
-murf-falcon-voice-agents-10-days/
-├── backend/          # LiveKit Agents backend with Murf Falcon TTS
-├── frontend/         # Next.js/React frontend for real-time voice interaction
-├── start_app.sh      # Script to run entire project
-└── demo/             # Demo videos for each day's task
-```
+🗂️ Repository Structure
+Day-3-Wellness-Agent/
+│
+├── backend/
+│   ├── app.py
+│   ├── agent/
+│   │   ├── wellness_agent.py
+│   │   ├── state_manager.py
+│   │   └── utils.py
+│   ├── data/
+│   │   └── wellness_logs.json
+│   ├── requirements.txt
+│   └── README.md   ← (backend README optional)
+│
+├── frontend/
+│   ├── index.html
+│   ├── style.css
+│   ├── script.js
+│   └── README.md   ← (frontend README optional)
+│
+└── README.md  ← main README (this file)
 
-## 🧠 Tech Stack
+🧩 How It Works
+1️⃣ User Message → Mood Analysis
 
-### **Backend**
-- Python (LiveKit Agent Starter)
-- Murf Falcon TTS (Ultra-fast speech synthesis)
-- Deepgram STT (optional)
-- Gemini / OpenAI LLMs (optional)
-- WebRTC, Turn detection, noise cancellation
+Agent reads user input → detects emotional tone → updates state.
 
-### **Frontend**
-- Next.js 15 / React
-- LiveKit Client SDK
-- Real-time audio streaming UI
-- Mic input, Audio visualizer, Dark/Light theme
+2️⃣ State Manager Logic
 
----
+Decides what the agent should respond with:
 
-## ⚡ Quick Start
+If user feels stressed → suggest breathing exercise
 
-### 1️⃣ Clone the Repo
-```bash
-git clone https://github.com/Tsrinivas123/murf-falcon-voice-agents-10-days.git
-cd murf-falcon-voice-agents-10-days
-2️⃣ Backend Setup
-bash
-Copy code
+If low mood → give encouragement
+
+If positive → reinforce good habits
+
+Every 2 hours → water reminder (optional)
+
+3️⃣ Store Log
+
+Every session is saved in data/wellness_logs.json.
+
+4️⃣ Output to User
+
+Output can be:
+
+Supportive text
+
+Voice response
+
+Guided prompts
+
+🚀 Run the Backend
+Install
 cd backend
+pip install -r requirements.txt
 
-# Install dependencies
-uv sync   # or use pip if uv not available
+Start Server
+python app.py
 
-# Create environment
-cp .env.example .env.local
 
-# Add your keys inside .env.local:
-# LIVEKIT_URL=
-# LIVEKIT_API_KEY=
-# LIVEKIT_API_SECRET=
-# MURF_API_KEY=
-# DEEPGRAM_API_KEY= (optional)
-# GOOGLE_API_KEY= (optional)
+Server will run on:
 
-# Download model assets
-uv run python src/agent.py download-files
+http://localhost:8000
 
-# Run backend (development mode)
-uv run python src/agent.py dev
-3️⃣ Frontend Setup
-bash
-Copy code
-cd ../frontend
+🖥️ Run the Frontend
 
-pnpm install
-cp .env.example .env.local      # Add LiveKit keys here too
+Just open the file:
 
-pnpm dev
-# Open: http://localhost:3000
-🏃 Run Everything Together
-bash
-Copy code
-chmod +x start_app.sh
-./start_app.sh
-This starts:
+frontend/index.html
 
-LiveKit Server (dev)
 
-Backend Agent
+It will connect to the backend API.
 
-Frontend UI
+🧪 API Endpoints
+▶️ /chat (POST)
 
-🎥 Demo Videos
-All daily demo videos will be added inside:
+Send user message → get agent response.
 
-bash
-Copy code
-/demo/day1-demo.mp4
-/demo/day2-demo.mp4
-...
-🔗 Challenge Details
-This project is part of the Murf AI Voice Agent Challenge.
-Follow my daily updates on LinkedIn using the hashtags:
+Request
 
-#MurfAIVoiceAgentsChallenge
+{
+  "message": "I'm feeling stressed"
+}
 
-#10DaysofAIVoiceAgents
+
+Response
+
+{
+  "reply": "I understand. Let's try a short 30-second breathing exercise together...",
+  "mood": "stressed",
+  "recommendation": "breathing_exercise"
+}
