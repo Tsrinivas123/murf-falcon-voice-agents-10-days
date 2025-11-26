@@ -1,4 +1,4 @@
-🎓 Day 4 – Teach-the-Tutor: Active Recall Coach
+# 🎓 Day 4 – Teach-the-Tutor: Active Recall Coach
 
 An interactive learning agent that teaches concepts, quizzes the learner, and then asks the learner to teach the concept back — leveraging the proven “active recall” technique. The agent dynamically shifts between learn, quiz, and teach_back modes and uses a small JSON course file to power the entire learning flow.
 
