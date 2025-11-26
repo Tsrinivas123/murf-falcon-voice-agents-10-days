@@ -1,9 +1,9 @@
-☕ Day 2 — Coffee Shop Barista Voice Agent
+# ☕ Day 2 — Coffee Shop Barista Voice Agent
 
 Welcome to the Brew & Bean Cafe — Barista Voice Agent!
 This agent takes coffee orders through voice interaction, validates order completeness, stores them in JSON format, and provides a seamless café ordering experience.
 
-🧭 Overview
+# 🧭 Overview
 
 The Day 2 Barista Voice Agent simulates a real coffee shop ordering workflow.
 Users speak their order, the agent confirms details, checks for missing information, and saves every order into a structured JSON file. It also supports real-time logging for staff.
@@ -20,7 +20,7 @@ Confirm final order
 
 Save structured JSON data
 
-☕ Example Drinks Supported
+#☕ Example Drinks Supported
 
 Americano
 
@@ -36,7 +36,7 @@ Mocha
 
 (+ you can add more in your menu JSON)
 
-📋 Barista Agent Features
+# 📋 Barista Agent Features
 ✔ Natural voice ordering
 
 Understands beverage, size, milk preferences, sweetness, toppings, etc.
@@ -69,7 +69,7 @@ backend/orders/order_2025-11-26.json
 
 Uses STT + TTS depending on your stack (LiveKit / Murf / Deepgram).
 
-📦 Order Data Saved (JSON Example)
+# 📦 Order Data Saved (JSON Example)
 {
   "order_id": "2025-11-26T12:49:33",
   "customer_request": "I want a cold coffee with extra ice",
@@ -82,7 +82,7 @@ Uses STT + TTS depending on your stack (LiveKit / Murf / Deepgram).
   "status": "completed"
 }
 
-🔁 Conversation Flow Example
+# 🔁 Conversation Flow Example
 
 User: Hi, I want a cappuccino.
 Agent: Sure! What size would you like — small, medium, or large?
@@ -93,7 +93,7 @@ Agent: Noted. Would you like any add-ons?
 User: No.
 Agent: Perfect — your medium cappuccino with 1 spoon sugar is being prepared!
 
-🤖 Agent Logic (Modes)
+# 🤖 Agent Logic (Modes)
 
 listen_order → understand the user’s request
 
@@ -105,7 +105,7 @@ confirm_order → speak back final order
 
 save_order → write JSON entry
 
-🧱 Tech Stack
+# 🧱 Tech Stack
 
 Backend: Python
 
@@ -137,7 +137,7 @@ Run backend:
 
 uv run python src/agent_day2.py dev
 
-🖥️ Frontend Setup
+# 🖥️ Frontend Setup
 cd Day_2/frontend
 pnpm install
 cp .env.example .env.local
