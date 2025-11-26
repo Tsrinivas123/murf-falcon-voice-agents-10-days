@@ -1,116 +1,267 @@
-# Murf Falcon Voice Agents — 10 Days Challenge
+📞 Day 5 — FAQ SDR + Lead Capture Voice Agent
 
-This repository contains my submissions for the **Murf AI Voice Agent Challenge**, where I build **10 AI Voice Agents in 10 Days** using the fastest TTS engine — **Murf Falcon** and **LiveKit Agents**.
+A voice-based Sales Development Representative (SDR) that answers company FAQs and automatically captures lead information during a natural conversation. The agent uses company-provided content (FAQs, product details, pricing) and avoids adding any unprovided details.
 
-## 🎥 Day 1 Demo Video
+🧭 Overview
 
-You can watch my Day 1 demo interaction with the Murf Falcon Voice Agent here:
+This agent acts as a Sales Development Representative for a chosen Indian company or startup.
+It greets visitors, understands their needs, answers product/company questions using your provided FAQ data, and collects key lead fields.
+When the conversation ends, the agent generates a structured lead summary and stores the captured information in JSON format.
 
-👉 **[Click to Watch Day-1 Demo Video](demo/day1-demo-murf-falcon%20-%20Made%20with%20Clipchamp.mp4)**
+✨ Features
 
-👉 **[Click to Watch Day 2 Demo Video](demo/Day%202%20-%20demo_murf_falcon%20-%20Made%20with%20Clipchamp.mp4)**
+Warm SDR-style voice interaction
+
+Answers company FAQ, pricing, and product questions
+
+Natural inquiry about user needs
+
+Lead field capture (name, company, role, email, use case, etc.)
+
+JSON storage of all responses
+
+End-of-call lead summary generation
+
+Keyword-based or simple matching for FAQ lookup
+
+Avoids hallucinating — only uses provided content
+
+🤖 Agent Capabilities
+1. SDR Persona
+
+Greets users politely
+
+Asks what they’re working on
+
+Keeps the conversation business-focused
+
+Guides them naturally to discuss their needs
+
+Asks for missing lead details smoothly
+
+2. FAQ Answering
+
+Loads company content (FAQ, product info, pricing)
+
+Matches user questions to relevant FAQ entries
+
+Responds only with provided content
+
+No made-up details or assumptions
+
+3. Lead Capture
+
+Collects fields such as:
+
+Name
+
+Company
+
+Email
+
+Role
+
+Use case
+
+Team size
+
+Timeline (now / soon / later)
+
+4. End-of-Call Summary
+
+When user says “That’s all”, “I’m done”, etc., the agent:
+
+Summarizes who the lead is
+
+Summarizes their needs
+
+Summarizes urgency
+
+Saves all data to a JSON file
+
+🛠️ Function Tools
+Tool	Purpose
+load_company_faq()	Loads FAQs/content provided by you
+find_faq_answer()	Keyword-based FAQ lookup
+set_lead_field()	Stores a single lead field
+save_lead_json()	Saves collected data to JSON file
+generate_summary()	Creates conversation summary
+📊 Metrics Tracked
+
+Lead personal details
+
+Company name
+
+User’s needs / use-case
+
+Team size
+
+Timeline
+
+FAQ question types asked
+
+Summary of conversation
+
+🗣 Conversational Flow
+
+Greet warmly
+
+Ask what brought them here
+
+Understand needs
+
+Answer FAQs using provided content
+
+Collect lead fields in natural dialogue
+
+Detect end-of-call phrases like:
+
+“That’s all”
+
+“I’m done”
+
+“Thanks, that’s it”
+
+Generate lead summary
+
+Save JSON file
+
+💾 Data Persistence
+
+All collected lead information is stored in:
+
+backend/leads/lead_data.json
 
 
+Format includes:
 
+Name
 
+Company
 
+Email
 
-*(Note: GitHub does not preview MP4 videos directly — click “View Raw” to download and play.)*
+Role
 
+Use case
 
+Team size
 
-## 🚀 Project Structure
+Timeline
 
-```
-murf-falcon-voice-agents-10-days/
-├── backend/          # LiveKit Agents backend with Murf Falcon TTS
-├── frontend/         # Next.js/React frontend for real-time voice interaction
-├── start_app.sh      # Script to run entire project
-└── demo/             # Demo videos for each day's task
-```
+🔗 External Integrations
 
-## 🧠 Tech Stack
+You can integrate:
 
-### **Backend**
-- Python (LiveKit Agent Starter)
-- Murf Falcon TTS (Ultra-fast speech synthesis)
-- Deepgram STT (optional)
-- Gemini / OpenAI LLMs (optional)
-- WebRTC, Turn detection, noise cancellation
+LiveKit (voice agent)
 
-### **Frontend**
-- Next.js 15 / React
-- LiveKit Client SDK
-- Real-time audio streaming UI
-- Mic input, Audio visualizer, Dark/Light theme
+Deepgram / Google STT
 
----
+Murf / ElevenLabs TTS
 
-## ⚡ Quick Start
+Optional CRM integration (HubSpot, Zoho — if added later)
 
-### 1️⃣ Clone the Repo
-```bash
-git clone https://github.com/Tsrinivas123/murf-falcon-voice-agents-10-days.git
-cd murf-falcon-voice-agents-10-days
-2️⃣ Backend Setup
-bash
-Copy code
-cd backend
+(Current README covers only your provided requirements.)
 
-# Install dependencies
-uv sync   # or use pip if uv not available
+🧱 Tech Stack
 
-# Create environment
+Backend: Python
+
+Voice: LiveKit Agents
+
+STT/TTS: Deepgram, Google, Murf Falcon (optional)
+
+Storage: JSON
+
+NLP: Simple keyword search for FAQ
+
+Frontend: Any client or LiveKit UI (if added)
+
+🎤 Example User Flow
+
+Agent: Hi there, welcome! What brings you here today?
+User: I want to know your pricing.
+Agent: (Finds pricing info in FAQ → answers)
+
+Agent: Great! Can I know your name so I can help you better?
+User: I’m Rohan.
+
+Agent: Sure Rohan. What company are you with?
+→ Continues collecting email, role, use case, team size, timeline
+
+User: That’s all for now.
+Agent: Thanks! Here is a quick summary of your requirements…
+→ Saves JSON file
+
+📝 JSON Entry Structure
+{
+  "name": "Rohan",
+  "company": "TechLabs",
+  "email": "rohan@example.com",
+  "role": "Product Manager",
+  "use_case": "Integrating AI voice support",
+  "team_size": "12",
+  "timeline": "soon",
+  "summary": "Rohan from TechLabs wants AI voice support…"
+}
+
+🧠 Advice / Output Logic
+
+FAQ answers come strictly from the provided FAQ text
+
+Keyword-based matching (e.g., “pricing”, “cost”, “features”)
+
+Does NOT generate info outside provided content
+
+Lead questions asked only if field is not yet stored
+
+Natural transitions between answers and questions
+
+End-of-call detection based on stop phrases
+
+⚙️ Setup Instructions
+🔧 Backend Setup
+cd Day_5/backend
+uv sync
 cp .env.example .env.local
 
-# Add your keys inside .env.local:
-# LIVEKIT_URL=
-# LIVEKIT_API_KEY=
-# LIVEKIT_API_SECRET=
-# MURF_API_KEY=
-# DEEPGRAM_API_KEY= (optional)
-# GOOGLE_API_KEY= (optional)
 
-# Download model assets
-uv run python src/agent.py download-files
+Add API keys:
 
-# Run backend (development mode)
+LIVEKIT_URL
+
+LIVEKIT_API_KEY
+
+LIVEKIT_API_SECRET
+
+STT/TTS provider keys
+
+Run agent:
+
 uv run python src/agent.py dev
-3️⃣ Frontend Setup
-bash
-Copy code
-cd ../frontend
 
+💻 Frontend Setup (if included)
+cd Day_5/frontend
 pnpm install
-cp .env.example .env.local      # Add LiveKit keys here too
-
+cp .env.example .env.local
 pnpm dev
-# Open: http://localhost:3000
-🏃 Run Everything Together
-bash
-Copy code
-chmod +x start_app.sh
-./start_app.sh
-This starts:
 
-LiveKit Server (dev)
+🔑 Third Party Services
 
-Backend Agent
+Configure in .env.local:
 
-Frontend UI
+LiveKit credentials
 
-🎥 Demo Videos
-All daily demo videos will be added inside:
+STT API keys (Deepgram/Google)
 
-bash
-Copy code
-/demo/day1-demo.mp4
-/demo/day2-demo.mp4
-...
-🔗 Challenge Details
-This project is part of the Murf AI Voice Agent Challenge.
-Follow my daily updates on LinkedIn using the hashtags:
+TTS API keys (Murf/ElevenLabs)
 
-#MurfAIVoiceAgentsChallenge
+✅ MVP Completion Checklist
 
-#10DaysofAIVoiceAgents
+You are done when:
+
+✔ Agent behaves like an SDR
+✔ Answers product/company/pricing FAQs
+✔ Collects & stores lead details
+✔ Generates end-of-call summary
+✔ Saves everything in JSON
