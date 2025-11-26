@@ -1,116 +1,193 @@
-# Murf Falcon Voice Agents — 10 Days Challenge
+🎓 Day 4 – Teach-the-Tutor: Active Recall Coach
 
-This repository contains my submissions for the **Murf AI Voice Agent Challenge**, where I build **10 AI Voice Agents in 10 Days** using the fastest TTS engine — **Murf Falcon** and **LiveKit Agents**.
+An interactive learning agent that teaches concepts, quizzes the learner, and then asks the learner to teach the concept back — leveraging the proven “active recall” technique. The agent dynamically shifts between learn, quiz, and teach_back modes and uses a small JSON course file to power the entire learning flow.
 
-## 🎥 Day 1 Demo Video
+🧭 Overview
 
-You can watch my Day 1 demo interaction with the Murf Falcon Voice Agent here:
+The core idea of Day 4 is simple:
 
-👉 **[Click to Watch Day-1 Demo Video](demo/day1-demo-murf-falcon%20-%20Made%20with%20Clipchamp.mp4)**
+The best way to learn is to teach.
 
-👉 **[Click to Watch Day 2 Demo Video](demo/Day%202%20-%20demo_murf_falcon%20-%20Made%20with%20Clipchamp.mp4)**
+This agent explains concepts, quizzes the user, asks the user to explain them back, and scores the explanation qualitatively.
+The user may switch modes at any time, and the agent should respond by shifting to that mode instantly.
+
+🎙️ Voices (Murf Falcon)
+Mode	Voice Name
+learn	Matthew
+quiz	Alicia
+teach_back	Ken
+
+Each mode uses a different Murf Falcon voice to create a strong distinction between learning phases.
+
+🧩 Learning Modes (Required)
+1. 📘 Learn Mode
+
+Agent explains a concept using the content file.
+
+Uses summary field from JSON.
+
+Voice: Matthew
+
+2. ❓ Quiz Mode
+
+Agent asks a question based on the concept's sample question.
+
+Voice: Alicia
+
+3. 🧑‍🏫 Teach-Back Mode
+
+Agent asks user to explain the concept in their own words.
+
+Gives simple qualitative feedback (good / decent / needs clarity).
+
+Voice: Ken
+
+📂 Course Content File (JSON)
+
+Location:
+
+shared-data/day4_tutor_content.json
 
 
+Example file:
 
+[
+  {
+    "id": "variables",
+    "title": "Variables",
+    "summary": "Variables store values so you can reuse them later...",
+    "sample_question": "What is a variable and why is it useful?"
+  },
+  {
+    "id": "loops",
+    "title": "Loops",
+    "summary": "Loops let you repeat an action multiple times...",
+    "sample_question": "Explain the difference between a for loop and a while loop."
+  }
+]
 
+The agent uses this file to:
 
+Explain concepts in Learn mode
 
-*(Note: GitHub does not preview MP4 videos directly — click “View Raw” to download and play.)*
+Ask quiz questions in Quiz mode
 
+Prompt the student during Teach-Back mode
 
+🎯 Completion Criteria
 
-## 🚀 Project Structure
+You successfully complete Day 4 when:
 
-```
-murf-falcon-voice-agents-10-days/
-├── backend/          # LiveKit Agents backend with Murf Falcon TTS
-├── frontend/         # Next.js/React frontend for real-time voice interaction
-├── start_app.sh      # Script to run entire project
-└── demo/             # Demo videos for each day's task
-```
+✔ 1. Agent greets the user
 
-## 🧠 Tech Stack
+Asks which learning mode they prefer
 
-### **Backend**
-- Python (LiveKit Agent Starter)
-- Murf Falcon TTS (Ultra-fast speech synthesis)
-- Deepgram STT (optional)
-- Gemini / OpenAI LLMs (optional)
-- WebRTC, Turn detection, noise cancellation
+Switches to proper voice & mode
 
-### **Frontend**
-- Next.js 15 / React
-- LiveKit Client SDK
-- Real-time audio streaming UI
-- Mic input, Audio visualizer, Dark/Light theme
+✔ 2. All three modes are implemented
 
----
+learn → explains concept from JSON
 
-## ⚡ Quick Start
+quiz → asks question from JSON
 
-### 1️⃣ Clone the Repo
-```bash
-git clone https://github.com/Tsrinivas123/murf-falcon-voice-agents-10-days.git
-cd murf-falcon-voice-agents-10-days
-2️⃣ Backend Setup
-bash
-Copy code
-cd backend
+teach_back → user explains, agent evaluates qualitatively
 
-# Install dependencies
-uv sync   # or use pip if uv not available
+✔ 3. User can switch modes anytime
 
-# Create environment
+Example:
+
+“Switch to quiz”
+“Now teach back loops”
+“Explain variables”
+
+✔ 4. JSON content fully drives the learning
+
+No hallucination, no external content.
+
+🤖 Agent Capabilities
+
+Reads the course content file on startup
+
+Supports multiple concepts (variables, loops, etc.)
+
+Responds strictly using JSON-provided summaries & questions
+
+Maintains current mode state
+
+Detects mode-switching phrases
+
+Gives short evaluation feedback based on user's explanation
+
+Uses correct Murf Falcon voice per mode
+
+🧠 Teach-Back Feedback Logic
+
+Qualitative evaluation based on learner’s answer:
+
+Great → User explanation covers definition + purpose
+
+Good → User explanation is mostly correct but lacks depth
+
+Needs Improvement → Missing key points, unclear or incomplete
+
+No scoring, just friendly coaching feedback.
+
+🔁 Conversation Flow Example
+
+Agent: Hi there! Which mode would you like to start with — learn, quiz, or teach back?
+User: Learn variables.
+Agent (Matthew): Sure! Variables store values so you can reuse them later…
+
+User: Switch to quiz.
+Agent (Alicia): Okay! What is a variable and why is it useful?
+
+User: Teach back loops.
+Agent (Ken): Great! Explain loops to me in your own words.
+
+User: [Explains]
+Agent: Nice job! You explained the basic idea well — but try to include how loops help repeat actions.
+
+📦 Data & Content
+
+All concepts loaded from day4_tutor_content.json
+
+No extra content should be invented
+
+All explanations & questions strictly come from JSON fields
+
+🧱 Tech Stack
+
+Backend: Python
+
+Learning Engine: JSON-driven content lookup
+
+Voices: Murf Falcon (Matthew, Alicia, Ken)
+
+State Manager: Keeps track of active mode
+
+LiveKit / Gemini / STT (if used in your challenge setup)
+
+🛠 Setup Instructions
+Backend Setup
+cd Day_4/backend
+uv sync
 cp .env.example .env.local
 
-# Add your keys inside .env.local:
-# LIVEKIT_URL=
-# LIVEKIT_API_KEY=
-# LIVEKIT_API_SECRET=
-# MURF_API_KEY=
-# DEEPGRAM_API_KEY= (optional)
-# GOOGLE_API_KEY= (optional)
 
-# Download model assets
-uv run python src/agent.py download-files
+Add in .env.local:
 
-# Run backend (development mode)
-uv run python src/agent.py dev
-3️⃣ Frontend Setup
-bash
-Copy code
-cd ../frontend
+MURF_API_KEY=
+LIVEKIT_API_KEY=
+LIVEKIT_API_SECRET=
+GOOGLE_API_KEY=
 
-pnpm install
-cp .env.example .env.local      # Add LiveKit keys here too
 
-pnpm dev
-# Open: http://localhost:3000
-🏃 Run Everything Together
-bash
-Copy code
-chmod +x start_app.sh
-./start_app.sh
-This starts:
+Run agent:
 
-LiveKit Server (dev)
+uv run python src/agent_day4.py dev
 
-Backend Agent
+Content File Setup
 
-Frontend UI
+Place course JSON here:
 
-🎥 Demo Videos
-All daily demo videos will be added inside:
-
-bash
-Copy code
-/demo/day1-demo.mp4
-/demo/day2-demo.mp4
-...
-🔗 Challenge Details
-This project is part of the Murf AI Voice Agent Challenge.
-Follow my daily updates on LinkedIn using the hashtags:
-
-#MurfAIVoiceAgentsChallenge
-
-#10DaysofAIVoiceAgents
+shared-data/day4_tutor_content.json
