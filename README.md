@@ -138,6 +138,7 @@ Run backend:
 uv run python src/agent_day2.py dev
 
 # 🖥️ Frontend Setup
+
 cd Day_2/frontend
 pnpm install
 cp .env.example .env.local
