@@ -70,7 +70,7 @@ backend/orders/order_2025-11-26.json
 Uses STT + TTS depending on your stack (LiveKit / Murf / Deepgram).
 
 # 📦 Order Data Saved (JSON Example)
-{
+'''{
   "order_id": "2025-11-26T12:49:33",
   "customer_request": "I want a cold coffee with extra ice",
   "drink": "Cold Coffee",
@@ -80,7 +80,7 @@ Uses STT + TTS depending on your stack (LiveKit / Murf / Deepgram).
   "sugar": "Normal",
   "addons": ["Extra Ice"],
   "status": "completed"
-}
+}'''
 
 # 🔁 Conversation Flow Example
 
