@@ -74,7 +74,7 @@ def seed_database():
                 "notes": "Automated flag: High value purchase."
             },
             {
-                "userName": "Priya",
+                "userName": "Kunal",
                 "securityIdentifier": "P9988",
                 "cardEnding": "1199",
                 "transactionName": "Unknown Exchange",
