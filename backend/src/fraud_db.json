@@ -1,0 +1,24 @@
+[
+    {
+        "userName": "Amit",
+        "securityIdentifier": "A1001",
+        "cardEnding": "4242",
+        "transactionName": "Local Electronics",
+        "transactionAmount": "\u00e2\u201a\u00b911,500.00",
+        "transactionTime": "2025-11-25 14:30 IST",
+        "transactionSource": "localshop.example",
+        "case_status": "confirmed_safe",
+        "notes": "User confirmed recognition of the transaction of \u20b911,500.00 at Local Electronics."
+    },
+    {
+        "userName": "Kunal",
+        "securityIdentifier": "P9988",
+        "cardEnding": "1199",
+        "transactionName": "Unknown Exchange",
+        "transactionAmount": "$2,100.00",
+        "transactionTime": "2025-11-26 04:15 PST",
+        "transactionSource": "online_transfer",
+        "case_status": "confirmed_fraud",
+        "notes": "Customer does not recognize the $2,100.00 online transfer to Unknown Exchange."
+    }
+]
