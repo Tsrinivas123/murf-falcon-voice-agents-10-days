@@ -69,12 +69,12 @@ Gemini 2.5 Flash – LLM reasoning
 LiveKit Agents – Real-time audio interaction
 
 # 📂 Project Structure
-/day-7
+```/day-7
 │
 ├── agent.py          # Main fraud agent logic
 ├── fraud_db.json     # Fraud case database
 └── README.md         # Documentation
-
+```
 # ✅ What’s Working in Day 7
 
 Full fraud alert workflow
