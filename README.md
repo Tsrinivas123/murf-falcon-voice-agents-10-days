@@ -1,116 +1,98 @@
-# Murf Falcon Voice Agents — 10 Days Challenge
+# 📘 Day 7 – Fraud Alert AI Voice Agent
 
-This repository contains my submissions for the **Murf AI Voice Agent Challenge**, where I build **10 AI Voice Agents in 10 Days** using the fastest TTS engine — **Murf Falcon** and **LiveKit Agents**.
+10 Days of AI Voice Agents Challenge – Murf Falcon + LiveKit
 
-## 🎥 Day 1 Demo Video
+# 📌 Overview
 
-You can watch my Day 1 demo interaction with the Murf Falcon Voice Agent here:
+Day 7 continues the development of the Fraud Alert Voice Agent, designed to simulate a real bank fraud verification call.
 
-👉 **[Click to Watch Day-1 Demo Video](demo/day1-demo-murf-falcon%20-%20Made%20with%20Clipchamp.mp4)**
+The agent speaks naturally, verifies the user, explains the suspicious transaction, and updates the fraud status in real time.
+All data is stored inside a JSON-based database for easy persistence.
 
-👉 **[Click to Watch Day 2 Demo Video](demo/Day%202%20-%20demo_murf_falcon%20-%20Made%20with%20Clipchamp.mp4)**
+This is the standard version — clean, simple, and fully functional.
 
+# 🚀 Features
+1. Fraud Verification Call Flow
 
+The agent performs a complete fraud verification workflow:
 
+Greets the user
 
+Asks for their name
 
+Retrieves the fraud case from fraud_db.json
 
-*(Note: GitHub does not preview MP4 videos directly — click “View Raw” to download and play.)*
+Reads the suspicious transaction
 
+Asks: “Was this you?”
 
+Marks the transaction as fraud or genuine
 
-## 🚀 Project Structure
+Returns a clear summary at the end
 
+2. JSON Fraud Database
+
+All fraud cases are stored inside fraud_db.json, including:
+
+User profile
+
+Suspicious transaction details
+
+Current status (pending → fraud/genuine)
+
+Timestamp of the update
+
+3. Natural Conversation Handling
+
+The agent understands and responds to:
+
+“Yes” → Mark as genuine
+
+“No” → Mark as fraud
+
+“Repeat” → Read the transaction again
+
+“Stop” → End the call with a summary
+
+No complex logic — just smooth, realistic communication.
+
+4. Real-Time Voice Pipeline
+
+Built with a reliable low-latency stack:
+
+Deepgram – Speech-to-Text
+
+Murf Falcon – Ultra-fast voice output
+
+Gemini 2.5 Flash – LLM reasoning
+
+LiveKit Agents – Real-time audio interaction
+
+# 📂 Project Structure
+```/day-7
+│
+├── agent.py          # Main fraud agent logic
+├── fraud_db.json     # Fraud case database
+└── README.md         # Documentation
 ```
-murf-falcon-voice-agents-10-days/
-├── backend/          # LiveKit Agents backend with Murf Falcon TTS
-├── frontend/         # Next.js/React frontend for real-time voice interaction
-├── start_app.sh      # Script to run entire project
-└── demo/             # Demo videos for each day's task
-```
+# ✅ What’s Working in Day 7
 
-## 🧠 Tech Stack
+Full fraud alert workflow
 
-### **Backend**
-- Python (LiveKit Agent Starter)
-- Murf Falcon TTS (Ultra-fast speech synthesis)
-- Deepgram STT (optional)
-- Gemini / OpenAI LLMs (optional)
-- WebRTC, Turn detection, noise cancellation
+Real-time STT → LLM → TTS pipeline
 
-### **Frontend**
-- Next.js 15 / React
-- LiveKit Client SDK
-- Real-time audio streaming UI
-- Mic input, Audio visualizer, Dark/Light theme
+Natural yes/no decision-making
 
----
+Database write/update
 
-## ⚡ Quick Start
+Clean final fraud summary
 
-### 1️⃣ Clone the Repo
-```bash
-git clone https://github.com/Tsrinivas123/murf-falcon-voice-agents-10-days.git
-cd murf-falcon-voice-agents-10-days
-2️⃣ Backend Setup
-bash
-Copy code
-cd backend
+Smooth, human-like voice interaction
 
-# Install dependencies
-uv sync   # or use pip if uv not available
+# 📌 Notes
 
-# Create environment
-cp .env.example .env.local
+This is the basic Day 7 version (as requested)
 
-# Add your keys inside .env.local:
-# LIVEKIT_URL=
-# LIVEKIT_API_KEY=
-# LIVEKIT_API_SECRET=
-# MURF_API_KEY=
-# DEEPGRAM_API_KEY= (optional)
-# GOOGLE_API_KEY= (optional)
+No multi-case handling or advanced fraud logic included
 
-# Download model assets
-uv run python src/agent.py download-files
-
-# Run backend (development mode)
-uv run python src/agent.py dev
-3️⃣ Frontend Setup
-bash
-Copy code
-cd ../frontend
-
-pnpm install
-cp .env.example .env.local      # Add LiveKit keys here too
-
-pnpm dev
-# Open: http://localhost:3000
-🏃 Run Everything Together
-bash
-Copy code
-chmod +x start_app.sh
-./start_app.sh
-This starts:
-
-LiveKit Server (dev)
-
-Backend Agent
-
-Frontend UI
-
-🎥 Demo Videos
-All daily demo videos will be added inside:
-
-bash
-Copy code
-/demo/day1-demo.mp4
-/demo/day2-demo.mp4
-...
-🔗 Challenge Details
-This project is part of the Murf AI Voice Agent Challenge.
-Follow my daily updates on LinkedIn using the hashtags:
-
-#MurfAIVoiceAgentsChallenge
-
-#10DaysofAIVoiceAgents
+Fully compatible with future upgrades
