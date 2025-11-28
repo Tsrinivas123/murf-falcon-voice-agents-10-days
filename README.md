@@ -121,7 +121,7 @@ python agent.py
 
 # 🎯 Why This Project?
 
-Day 7 focused on:
+```Day 7 focused on:
 
 Creating a realistic grocery ordering experience
 
@@ -132,10 +132,10 @@ Full end-to-end voice flow
 Clean carts, orders, and tracking simulation
 
 This brings real-world quick-commerce behavior into a simple but powerful voice agent.
-
+```
 # 🏷️ Credits
 
-Murf Falcon TTS
+```Murf Falcon TTS
 
 Deepgram STT
 
@@ -144,3 +144,4 @@ Google Gemini
 LiveKit Agents
 
 Built for the Murf AI Voice Agent Challenge
+```
