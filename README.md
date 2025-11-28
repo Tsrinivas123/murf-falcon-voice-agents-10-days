@@ -58,8 +58,8 @@ LiveKit Agents → Real-time low-latency interaction
 │
 ├── src/
 │   ├── agent.py          # Main agent logic (Amit)
-│   ├── database.py       # (removed in day 7)
-│   └── ...              
+│   
+│          
 │
 ├── data/
 │   ├── catalog.json      # Product catalog
@@ -88,9 +88,9 @@ cancel_order
 5️⃣ Orders get updated & tracked in JSON
 ```
 
-# 
-💬 Example Conversation
-User: Amit, do you have bread?
+# 💬 Example Conversation
+
+```User: Amit, do you have bread?
 Amit: Yes, I found Whole Wheat Bread.
 
 User: Add 2 breads.
@@ -100,6 +100,7 @@ User: Add one peanut butter.
 User: Show my cart.
 User: Place my order under the name Tushar.
 User: Track my order.
+```
 
 # 🛠️ Setup & Run
 
