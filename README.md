@@ -5,8 +5,9 @@ This project is a fully conversational real-time food & grocery ordering voice a
 
 The agent can search items, add to cart, suggest ingredients, place orders, track deliveries, and store everything in JSON files — all using natural voice.
 
-##🚀 Features
-#🗣️ Conversational Voice Agent ("Amit")
+# 🚀 Features
+
+# 🗣️ Conversational Voice Agent ("Amit")
 
 Understands natural English like:
 
@@ -20,7 +21,7 @@ Fuzzy search for items, brands, tags (even with typos)
 
 Friendly quick-commerce style behaviour (like Instamart/Blinkit)
 
-#📦 Shopping Cart + Orders
+# 📦 Shopping Cart + Orders
 
 Add, update, remove items
 
@@ -34,7 +35,7 @@ Automatically simulates tracking:
 
 received → confirmed → shipped → out_for_delivery → delivered
 
-##📚 JSON Storage Backend
+# 📚 JSON Storage Backend
 
 Product catalog stored in catalog.json
 
@@ -42,7 +43,7 @@ Orders stored in orders.json
 
 Safe read/write using atomic updates
 
-##🎤 Real-Time Voice Pipeline
+# 🎤 Real-Time Voice Pipeline
 
 Deepgram STT → Speech to text
 
@@ -67,12 +68,13 @@ LiveKit Agents → Real-time low-latency interaction
 └── README.md             # Project documentation
 ```
 
-##🧠 How It Works
-1️⃣ User speaks → Deepgram converts speech to text
+# 🧠 How It Works
+
+```1️⃣ User speaks → Deepgram converts speech to text
 2️⃣ Gemini processes the request
 3️⃣ The agent calls tools like:
 
-`` find_item
+ find_item
 
 add_to_cart
 
@@ -80,12 +82,14 @@ show_cart
 
 place_order
 
-cancel_order ```
+cancel_order 
 
 4️⃣ Murf Falcon TTS speaks the response
 5️⃣ Orders get updated & tracked in JSON
+```
 
-## 💬 Example Conversation
+# 
+💬 Example Conversation
 User: Amit, do you have bread?
 Amit: Yes, I found Whole Wheat Bread.
 
@@ -97,8 +101,9 @@ User: Show my cart.
 User: Place my order under the name Tushar.
 User: Track my order.
 
-## 🛠️ Setup & Run
-1️⃣ Install dependencies
+# 🛠️ Setup & Run
+
+```1️⃣ Install dependencies
 pip install -r requirements.txt
 
 2️⃣ Create .env.local with API keys
@@ -111,8 +116,9 @@ LIVEKIT_SECRET=
 
 3️⃣ Run the agent
 python agent.py
+```
 
-## 🎯 Why This Project?
+# 🎯 Why This Project?
 
 Day 7 focused on:
 
@@ -126,7 +132,7 @@ Clean carts, orders, and tracking simulation
 
 This brings real-world quick-commerce behavior into a simple but powerful voice agent.
 
-## 🏷️ Credits
+# 🏷️ Credits
 
 Murf Falcon TTS
 
