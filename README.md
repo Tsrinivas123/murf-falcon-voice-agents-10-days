@@ -1,98 +1,139 @@
-# 📘 Day 7 – Fraud Alert AI Voice Agent
+# 🛒 Tushar QuickCart – Day 7
+AI Food & Grocery Ordering Voice Agent (LiveKit + Murf + Deepgram + Gemini)
 
-10 Days of AI Voice Agents Challenge – Murf Falcon + LiveKit
+This project is a fully conversational real-time food & grocery ordering voice agent, built as part of the Murf AI Voice Agent Challenge – Day 7.
 
-# 📌 Overview
+The agent can search items, add to cart, suggest ingredients, place orders, track deliveries, and store everything in JSON files — all using natural voice.
 
-Day 7 continues the development of the Fraud Alert Voice Agent, designed to simulate a real bank fraud verification call.
+##🚀 Features
+#🗣️ Conversational Voice Agent ("Amit")
 
-The agent speaks naturally, verifies the user, explains the suspicious transaction, and updates the fraud status in real time.
-All data is stored inside a JSON-based database for easy persistence.
+Understands natural English like:
 
-This is the standard version — clean, simple, and fully functional.
+“Do you have bread?”
 
-# 🚀 Features
-1. Fraud Verification Call Flow
+“Add 2 pasta”
 
-The agent performs a complete fraud verification workflow:
+“Show my cart”
 
-Greets the user
+Fuzzy search for items, brands, tags (even with typos)
 
-Asks for their name
+Friendly quick-commerce style behaviour (like Instamart/Blinkit)
 
-Retrieves the fraud case from fraud_db.json
+#📦 Shopping Cart + Orders
 
-Reads the suspicious transaction
+Add, update, remove items
 
-Asks: “Was this you?”
+Add ingredients for dishes automatically
 
-Marks the transaction as fraud or genuine
+Calculate totals
 
-Returns a clear summary at the end
+Store all orders in orders.json
 
-2. JSON Fraud Database
+Automatically simulates tracking:
 
-All fraud cases are stored inside fraud_db.json, including:
+received → confirmed → shipped → out_for_delivery → delivered
 
-User profile
+##📚 JSON Storage Backend
 
-Suspicious transaction details
+Product catalog stored in catalog.json
 
-Current status (pending → fraud/genuine)
+Orders stored in orders.json
 
-Timestamp of the update
+Safe read/write using atomic updates
 
-3. Natural Conversation Handling
+##🎤 Real-Time Voice Pipeline
 
-The agent understands and responds to:
+Deepgram STT → Speech to text
 
-“Yes” → Mark as genuine
+Gemini 2.5 Flash → Conversational logic & reasoning
 
-“No” → Mark as fraud
+Murf Falcon TTS → Fast human-like voice
 
-“Repeat” → Read the transaction again
+LiveKit Agents → Real-time low-latency interaction
 
-“Stop” → End the call with a summary
-
-No complex logic — just smooth, realistic communication.
-
-4. Real-Time Voice Pipeline
-
-Built with a reliable low-latency stack:
-
-Deepgram – Speech-to-Text
-
-Murf Falcon – Ultra-fast voice output
-
-Gemini 2.5 Flash – LLM reasoning
-
-LiveKit Agents – Real-time audio interaction
-
-# 📂 Project Structure
-```/day-7
+##📁 Project Structure
+```backend/
 │
-├── agent.py          # Main fraud agent logic
-├── fraud_db.json     # Fraud case database
-└── README.md         # Documentation
+├── src/
+│   ├── agent.py          # Main agent logic (Amit)
+│   ├── database.py       # (removed in day 7)
+│   └── ...              
+│
+├── data/
+│   ├── catalog.json      # Product catalog
+│   └── orders.json       # Order storage
+│
+└── README.md             # Project documentation
 ```
-# ✅ What’s Working in Day 7
 
-Full fraud alert workflow
+##🧠 How It Works
+1️⃣ User speaks → Deepgram converts speech to text
+2️⃣ Gemini processes the request
+3️⃣ The agent calls tools like:
 
-Real-time STT → LLM → TTS pipeline
+`` find_item
 
-Natural yes/no decision-making
+add_to_cart
 
-Database write/update
+show_cart
 
-Clean final fraud summary
+place_order
 
-Smooth, human-like voice interaction
+cancel_order ```
 
-# 📌 Notes
+4️⃣ Murf Falcon TTS speaks the response
+5️⃣ Orders get updated & tracked in JSON
 
-This is the basic Day 7 version (as requested)
+## 💬 Example Conversation
+User: Amit, do you have bread?
+Amit: Yes, I found Whole Wheat Bread.
 
-No multi-case handling or advanced fraud logic included
+User: Add 2 breads.
+Amit: Added 2 items to your cart.
 
-Fully compatible with future upgrades
+User: Add one peanut butter.
+User: Show my cart.
+User: Place my order under the name Tushar.
+User: Track my order.
+
+## 🛠️ Setup & Run
+1️⃣ Install dependencies
+pip install -r requirements.txt
+
+2️⃣ Create .env.local with API keys
+DEEPGRAM_API_KEY=
+GOOGLE_API_KEY=
+MURF_API_KEY=
+LIVEKIT_URL=
+LIVEKIT_API_KEY=
+LIVEKIT_SECRET=
+
+3️⃣ Run the agent
+python agent.py
+
+## 🎯 Why This Project?
+
+Day 7 focused on:
+
+Creating a realistic grocery ordering experience
+
+Combining fuzzy search + JSON persistence
+
+Full end-to-end voice flow
+
+Clean carts, orders, and tracking simulation
+
+This brings real-world quick-commerce behavior into a simple but powerful voice agent.
+
+## 🏷️ Credits
+
+Murf Falcon TTS
+
+Deepgram STT
+
+Google Gemini
+
+LiveKit Agents
+
+Built for the Murf AI Voice Agent Challenge
