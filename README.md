@@ -1,14 +1,14 @@
 # 🛒 Tushar QuickCart – Day 7
-AI Food & Grocery Ordering Voice Agent (LiveKit + Murf + Deepgram + Gemini)
+```AI Food & Grocery Ordering Voice Agent (LiveKit + Murf + Deepgram + Gemini)
 
 This project is a fully conversational real-time food & grocery ordering voice agent, built as part of the Murf AI Voice Agent Challenge – Day 7.
 
 The agent can search items, add to cart, suggest ingredients, place orders, track deliveries, and store everything in JSON files — all using natural voice.
-
+```
 # 🚀 Features
 
 # 🗣️ Conversational Voice Agent ("Amit")
-
+```
 Understands natural English like:
 
 “Do you have bread?”
@@ -20,10 +20,10 @@ Understands natural English like:
 Fuzzy search for items, brands, tags (even with typos)
 
 Friendly quick-commerce style behaviour (like Instamart/Blinkit)
-
+```
 # 📦 Shopping Cart + Orders
 
-Add, update, remove items
+```Add, update, remove items
 
 Add ingredients for dishes automatically
 
@@ -34,10 +34,10 @@ Store all orders in orders.json
 Automatically simulates tracking:
 
 received → confirmed → shipped → out_for_delivery → delivered
-
+```
 # 📚 JSON Storage Backend
 
-Product catalog stored in catalog.json
+```Product catalog stored in catalog.json
 
 Orders stored in orders.json
 
@@ -52,7 +52,7 @@ Gemini 2.5 Flash → Conversational logic & reasoning
 Murf Falcon TTS → Fast human-like voice
 
 LiveKit Agents → Real-time low-latency interaction
-
+```
 ##📁 Project Structure
 ```backend/
 │
