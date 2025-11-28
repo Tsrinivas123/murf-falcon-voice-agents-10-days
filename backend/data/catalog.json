@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "store_name": "QuickCart",
+    "currency": "INR"
+  },
+  "items": [
+    {
+      "id": "b1",
+      "name": "Whole Wheat Bread",
+      "category": "Groceries",
+      "price": 45.0,
+      "brand": "GrainGood",
+      "size": "400g",
+      "tags": [
+        "vegan"
+      ]
+    },
+    {
+      "id": "b2",
+      "name": "Brown Eggs (6)",
+      "category": "Groceries",
+      "price": 60.0,
+      "brand": "FarmFresh",
+      "size": "6pcs",
+      "tags": []
+    },
+    {
+      "id": "m1",
+      "name": "Milk (1L)",
+      "category": "Groceries",
+      "price": 55.0,
+      "brand": "DairyPure",
+      "size": "1L",
+      "tags": [
+        "vegetarian"
+      ]
+    },
+    {
+      "id": "p1",
+      "name": "Peanut Butter (Jar)",
+      "category": "Groceries",
+      "price": 220.0,
+      "brand": "Nutty",
+      "size": "350g",
+      "tags": [
+        "vegan"
+      ]
+    },
+    {
+      "id": "s1",
+      "name": "Pasta (500g)",
+      "category": "Groceries",
+      "price": 90.0,
+      "brand": "PastaBella",
+      "size": "500g",
+      "tags": []
+    },
+    {
+      "id": "s2",
+      "name": "Tomato Pasta Sauce (350g)",
+      "category": "Groceries",
+      "price": 120.0,
+      "brand": "Saucy",
+      "size": "350g",
+      "tags": [
+        "vegan"
+      ]
+    },
+    {
+      "id": "sn1",
+      "name": "Salted Potato Chips",
+      "category": "Snacks",
+      "price": 35.0,
+      "brand": "Crunchies",
+      "size": "70g",
+      "tags": []
+    },
+    {
+      "id": "pf1",
+      "name": "Margherita Pizza (Ready)",
+      "category": "Prepared Food",
+      "price": 249.0,
+      "brand": "QuickBite",
+      "size": "Medium",
+      "tags": [
+        "vegetarian"
+      ]
+    },
+    {
+      "id": "pf2",
+      "name": "Chicken Sandwich",
+      "category": "Prepared Food",
+      "price": 179.0,
+      "brand": "QuickBite",
+      "size": "Single",
+      "tags": []
+    },
+    {
+      "id": "g1",
+      "name": "Banana (per pc)",
+      "category": "Groceries",
+      "price": 12.0,
+      "brand": "Local",
+      "size": "1 pc",
+      "tags": [
+        "vegan"
+      ]
+    },
+    {
+      "id": "g2",
+      "name": "Cheddar Cheese (200g)",
+      "category": "Groceries",
+      "price": 160.0,
+      "brand": "DairyGold",
+      "size": "200g",
+      "tags": []
+    },
+    {
+      "id": "g3",
+      "name": "Olive Oil (500ml)",
+      "category": "Groceries",
+      "price": 399.0,
+      "brand": "Oliva",
+      "size": "500ml",
+      "tags": []
+    },
+    {
+      "id": "b3",
+      "name": "Jam (Strawberry)",
+      "category": "Groceries",
+      "price": 150.0,
+      "brand": "JamJoy",
+      "size": "300g",
+      "tags": []
+    },
+    {
+      "id": "d1",
+      "name": "Dosa Batter (500g)",
+      "category": "Prepared Food",
+      "price": 80.0,
+      "brand": "Southy",
+      "size": "500g",
+      "tags": [
+        "vegetarian"
+      ]
+    }
+  ]
+}
