@@ -42,10 +42,10 @@ received → confirmed → shipped → out_for_delivery → delivered
 Orders stored in orders.json
 
 Safe read/write using atomic updates
-
+```
 # 🎤 Real-Time Voice Pipeline
 
-Deepgram STT → Speech to text
+```Deepgram STT → Speech to text
 
 Gemini 2.5 Flash → Conversational logic & reasoning
 
@@ -53,7 +53,7 @@ Murf Falcon TTS → Fast human-like voice
 
 LiveKit Agents → Real-time low-latency interaction
 ```
-##📁 Project Structure
+# 📁 Project Structure
 ```backend/
 │
 ├── src/
