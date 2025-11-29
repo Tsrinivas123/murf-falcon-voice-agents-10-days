@@ -1,20 +1,20 @@
+# agent.py
 # ======================================================
-# 🍽️ DAY 7: FOOD & GROCERY ORDERING AGENT (JSON backend, Indian catalog)
-# 🛒 "Tushar QuickCart" - JSON persistence (catalog.json + orders.json)
-# Assistant: Amit (with fuzzy search)
+# 🎲 DAY 8: VOICE GAME MASTER — Pirate / Seafaring Mini-Arc 
+# - LiveKit agent plumbing preserved (deepgram, murf, silero, MultilingualModel)
+# - Tools: start_adventure, get_scene, player_action (with d20 checks), show_journal, restart_adventure, get_world_state)
+# - Per-session userdata holds continuity (history / journal / inventory / named_npcs / choices_made)
+# - DEV_SMOKE local simulator available (set DEV_SMOKE=1 in .env.local)
 # ======================================================
 
 import os
 import json
 import uuid
-import asyncio
+import random
 import logging
-import re
-import string
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional, Annotated
-from difflib import get_close_matches, SequenceMatcher
+from typing import List, Dict, Optional, Any, Annotated
 
 from dotenv import load_dotenv
 from pydantic import Field
@@ -32,495 +32,787 @@ from livekit.agents import (
 from livekit.plugins import murf, silero, google, deepgram, noise_cancellation
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
+load_dotenv(".env.local")
+
 # -------------------------
 # Logging
 # -------------------------
-logger = logging.getLogger("tushar_quickcart_agent")
+logger = logging.getLogger("day8_gamemaster_agent_pirate")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
 logger.addHandler(handler)
 
-load_dotenv(".env.local")
-
 # -------------------------
-# Paths (data directory under backend/data/)
+# WORLD: Pirate / Seafaring mini-arc (original content, fan-inspired)
 # -------------------------
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # backend/src
-DATA_DIR = os.path.normpath(os.path.join(BASE_DIR, "..", "data"))
-CATALOG_FILE = os.path.join(DATA_DIR, "catalog.json")
-ORDERS_FILE = os.path.join(DATA_DIR, "orders.json")
-CURRENCY = "INR"
-
-os.makedirs(DATA_DIR, exist_ok=True)
-
-# -------------------------
-# JSON helpers
-# -------------------------
-def load_json(path, default):
-    if not os.path.exists(path):
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(default, f, indent=2, ensure_ascii=False)
-        return default
-    with open(path, "r", encoding="utf-8") as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            with open(path, "w", encoding="utf-8") as fw:
-                json.dump(default, fw, indent=2, ensure_ascii=False)
-            return default
-
-def save_json(path, obj):
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(obj, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, path)
-
-# -------------------------
-# Seed catalog (Tushar QuickCart)
-# -------------------------
-SAMPLE_CATALOG = {
-    "meta": {"store_name": "Tushar QuickCart", "currency": CURRENCY},
-    "items": [
-        {"id": "milk-amul-1l", "name": "Amul Taaza Milk", "category": "Dairy", "price": 72.00, "brand": "Amul", "size": "1L", "units": "pack",
-         "tags": ["dairy", "milk", "amul", "taaza"]},
-        {"id": "paneer-200g", "name": "Amul Malai Paneer", "category": "Dairy", "price": 95.00, "brand": "Amul", "size": "200g", "units": "pack",
-         "tags": ["paneer", "amul", "veg"]},
-        {"id": "butter-100g", "name": "Amul Butter", "category": "Dairy", "price": 58.00, "brand": "Amul", "size": "100g", "units": "pack",
-         "tags": ["butter", "amul"]},
-        {"id": "curd-400g", "name": "Mother Dairy Dahi", "category": "Dairy", "price": 40.00, "brand": "Mother Dairy", "size": "400g", "units": "cup",
-         "tags": ["dahi", "curd", "mother dairy"]},
-        {"id": "atta-5kg", "name": "Aashirvaad Whole Wheat Atta", "category": "Staples", "price": 245.00, "brand": "Aashirvaad", "size": "5kg", "units": "bag",
-         "tags": ["atta", "flour", "roti"]},
-        {"id": "rice-basmati-1kg", "name": "India Gate Basmati Rice", "category": "Staples", "price": 160.00, "brand": "India Gate", "size": "1kg", "units": "bag",
-         "tags": ["rice", "basmati"]},
-        {"id": "dal-toor-1kg", "name": "Tata Sampann Toor Dal", "category": "Staples", "price": 185.00, "brand": "Tata", "size": "1kg", "units": "pack",
-         "tags": ["dal", "toor", "tata"]},
-        {"id": "salt-1kg", "name": "Tata Salt", "category": "Staples", "price": 28.00, "brand": "Tata", "size": "1kg", "units": "pack",
-         "tags": ["salt", "essential"]},
-        {"id": "sugar-1kg", "name": "Madhur Sugar", "category": "Staples", "price": 60.00, "brand": "Madhur", "size": "1kg", "units": "pack",
-         "tags": ["sugar", "madhur"]},
-        {"id": "maggi-masala", "name": "Maggi 2-Minute Noodles", "category": "Instant Food", "price": 14.00, "brand": "Nestle", "size": "70g", "units": "pack",
-         "tags": ["maggi", "noodles", "masala"]},
-        {"id": "biscuits-marie", "name": "Britannia Marie Gold", "category": "Snacks", "price": 35.00, "brand": "Britannia", "size": "250g", "units": "pack",
-         "tags": ["biscuits", "marie"]},
-        {"id": "chips-lays", "name": "Lays Magic Masala", "category": "Snacks", "price": 20.00, "brand": "Lays", "size": "50g", "units": "pack",
-         "tags": ["chips", "lays"]},
-        {"id": "tea-250g", "name": "Red Label Tea", "category": "Beverages", "price": 140.00, "brand": "Brooke Bond", "size": "250g", "units": "pack",
-         "tags": ["tea", "chai", "red label"]},
-        {"id": "potato-1kg", "name": "Fresh Potatoes", "category": "Vegetables", "price": 40.00, "brand": "", "size": "1kg", "units": "kg",
-         "tags": ["potato", "potatoes", "aloo", "veg"]},
-        {"id": "onion-1kg", "name": "Fresh Onions", "category": "Vegetables", "price": 55.00, "brand": "", "size": "1kg", "units": "kg",
-         "tags": ["onion", "pyaz", "veg"]},
-        {"id": "tomato-1kg", "name": "Fresh Tomatoes", "category": "Vegetables", "price": 60.00, "brand": "", "size": "1kg", "units": "kg",
-         "tags": ["tomato", "tamatar", "veg"]},
-        {"id": "ginger-100g", "name": "Fresh Ginger", "category": "Vegetables", "price": 20.00, "brand": "", "size": "100g", "units": "g",
-         "tags": ["ginger", "adrak", "veg", "chai"]},
-    ]
+WORLD = {
+    "intro": {
+        "title": "A Whisper from the Blue",
+        "desc": (
+            "You wake aboard a beached skiff on a crescent shore. Beyond the reef a tall ship's "
+            "mast silhouettes against dawn. A crumpled map flutters at your feet — its ink shows "
+            "an 'X' on a nearby isle called Gull's Haven. From the treeline, gulls cry like a warning."
+        ),
+        "choices": {
+            "read_map": {
+                "desc": "Unfold and read the crumpled map.",
+                "result_scene": "map",
+            },
+            "head_to_ship": {
+                "desc": "Follow tracks toward the tall mast beyond the reef.",
+                "result_scene": "ship",
+            },
+            "explore_shore": {
+                "desc": "Search the sand and nearby tide pools.",
+                "result_scene": "tidepools",
+            },
+        },
+    },
+    "map": {
+        "title": "Weathered Chart",
+        "desc": (
+            "The map is old but clear: a small isle ringed by jagged rocks, an icon of a carved gate, "
+            "and a note in a hurried hand: 'When the gulls hush, the gate wakes.' A faint smear of salt water "
+            "carries the smell of ship smoke."
+        ),
+        "choices": {
+            "tuck_map": {
+                "desc": "Tuck the map into your sash — it might be useful.",
+                "result_scene": "ship_approach",
+                "effects": {"add_journal": "Found weathered map to Gull's Haven."},
+            },
+            "leave_map": {
+                "desc": "Leave it — perhaps the map belongs to someone else.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "ship": {
+        "title": "The Lone Brig",
+        "desc": (
+            "You creep forward and spy a small brig anchored off the reef, hull half-hid by foam. "
+            "Aboard, crates are stacked and a single lantern swings. The deck looks recently used."
+        ),
+        "choices": {
+            "board_quiet": {
+                "desc": "Climb quietly and search the brig.",
+                "result_scene": "brig_search",
+            },
+            "shout_hail": {
+                "desc": "Call out to see if anyone's aboard.",
+                "result_scene": "brig_alert",
+            },
+            "retreat": {
+                "desc": "Step back and return to the shore.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "tidepools": {
+        "title": "Tidepools and Trinkets",
+        "desc": (
+            "Among broken shells and driftwood you find a salt-stiff locket and a scrap of a sailor's log: '—last seen near Gull's Gate'."
+        ),
+        "choices": {
+            "take_locket": {
+                "desc": "Take the locket and keep the log scrap.",
+                "result_scene": "ship_approach",
+                "effects": {"add_inventory": "salt_locket", "add_journal": "Found sailor's log scrap referencing Gull's Gate."},
+            },
+            "leave": {
+                "desc": "Leave the finds and move on.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "ship_approach": {
+        "title": "Approaching the Brig",
+        "desc": (
+            "You slip toward the brig. The smell of rope and tar is strong. A coiled rope hangs ready — like someone expected to sail soon."
+        ),
+        "choices": {
+            "board": {
+                "desc": "Use the rope to board the brig quietly.",
+                "result_scene": "brig_search",
+            },
+            "circle_and_watch": {
+                "desc": "Circle the brig from a distance and listen.",
+                "result_scene": "brig_listen",
+            },
+            "return_shore": {
+                "desc": "Return to the shore to reconsider.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "brig_search": {
+        "title": "Crates and Echoes",
+        "desc": (
+            "Below deck you find crates stamped with a merchant pact and a locked chest with a carved keyhole shaped like a gull."
+        ),
+        "choices": {
+            "pick_lock": {
+                "desc": "Attempt to pick the lock.",
+                "result_scene": "lock_attempt",
+            },
+            "carry_chest": {
+                "desc": "Try to haul the chest ashore.",
+                "result_scene": "haul_attempt",
+            },
+            "leave_chest": {
+                "desc": "Close the chest and leave quietly.",
+                "result_scene": "ship_approach",
+            },
+        },
+    },
+    "brig_alert": {
+        "title": "Lanterns Flare",
+        "desc": (
+            "Your shout echoes. Lanterns flare and a voice calls below deck, 'Who's there?' Footsteps thump up the ladder."
+        ),
+        "choices": {
+            "pose_as_sailor": {
+                "desc": "Claim to be a lost sailor in need of help.",
+                "result_scene": "parley",
+            },
+            "flee": {
+                "desc": "Drop back to the shore and hide.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "brig_listen": {
+        "title": "Listening to Tides",
+        "desc": (
+            "From behind a bale you hear a hushed argument — someone mentions Gull's Haven and a 'gate' that 'mustn't open.'"
+        ),
+        "choices": {
+            "eavesdrop": {
+                "desc": "Eavesdrop to learn more.",
+                "result_scene": "learn_secret",
+            },
+            "sneak_away": {
+                "desc": "Slip away before you're seen.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "lock_attempt": {
+        "title": "The Lock",
+        "desc": (
+            "The keyhole resists. Picking it could reveal what's inside — or set off an alarm of some kind."
+        ),
+        "choices": {
+            "attempt_pick": {
+                "desc": "Try to pick the lock (risky).",
+                "result_scene": "pick_result",
+            },
+            "search_elsewhere": {
+                "desc": "Search for clues elsewhere on the brig.",
+                "result_scene": "brig_search",
+            },
+            "leave": {
+                "desc": "Leave it and return to deck.",
+                "result_scene": "ship_approach",
+            },
+        },
+    },
+    "haul_attempt": {
+        "title": "Heavy Burden",
+        "desc": (
+            "The chest is heavier than it looks; hauling it out will take strength and time — and might draw attention."
+        ),
+        "choices": {
+            "heave": {
+                "desc": "Heave the chest toward the shore (risky).",
+                "result_scene": "heave_result",
+            },
+            "abandon": {
+                "desc": "Abandon the effort and search below.",
+                "result_scene": "brig_search",
+            },
+        },
+    },
+    "parley": {
+        "title": "Parley on the Deck",
+        "desc": (
+            "A grizzled sailor peers out. He squints at you, then asks 'What business have you with the brig?'"
+        ),
+        "choices": {
+            "tell_truth": {
+                "desc": "Tell the truth about finding the skiff.",
+                "result_scene": "parley_trust",
+            },
+            "lie": {
+                "desc": "Lie and say you're crew of a nearby trader.",
+                "result_scene": "parley_lie",
+            },
+        },
+    },
+    "learn_secret": {
+        "title": "A Dark Bargain",
+        "desc": (
+            "You catch a phrase: '—the gate awakens at low tide. If the navy learns, they'll take the relic.' It sounds like trouble."
+        ),
+        "choices": {
+            "seek_gulls_haven": {
+                "desc": "Decide to go to Gull's Haven before the navy.",
+                "result_scene": "sail_to_isle",
+                "effects": {"add_journal": "Heard talk of Gull's Haven and a gate that wakes at low tide."},
+            },
+            "retreat_quiet": {
+                "desc": "Retreat quietly for now.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "pick_result": {
+        "title": "The Pick",
+        "desc": (
+            "If you pick the lock you might open the chest — success could bring loot or a clue; failure could sound alarms."
+        ),
+        "choices": {
+            "open_chest": {
+                "desc": "Open the chest (if unlocked).",
+                "result_scene": "chest_open",
+            },
+            "leave": {
+                "desc": "Leave the chest and slip back up.",
+                "result_scene": "ship_approach",
+            },
+        },
+    },
+    "heave_result": {
+        "title": "Strain and Shout",
+        "desc": (
+            "You strain with the chest. Muscles burn — a sudden shout from ashore warns that someone approaches from the sandbar."
+        ),
+        "choices": {
+            "run_with_chest": {
+                "desc": "Run with the chest across the sand (risky).",
+                "result_scene": "escape_attempt",
+            },
+            "drop_and_hide": {
+                "desc": "Drop the chest and hide.",
+                "result_scene": "hide_result",
+            },
+        },
+    },
+    "chest_open": {
+        "title": "Inside the Chest",
+        "desc": (
+            "Inside is a small, sea-glass idol and a folded note: 'Return what was taken and the tides will sing.' A carved gull tooth dangles in a velvet pouch."
+        ),
+        "choices": {
+            "take_idol": {
+                "desc": "Take the sea-glass idol and pouch.",
+                "result_scene": "isle_choice",
+                "effects": {"add_inventory": "sea_glass_idol", "add_journal": "Found idol and note: 'Return what was taken.'"},
+            },
+            "leave_it": {
+                "desc": "Leave the chest as it is.",
+                "result_scene": "ship_approach",
+            },
+        },
+    },
+    "sail_to_isle": {
+        "title": "Course for Gull's Haven",
+        "desc": (
+            "You find a skiff and push out. Wind and current favor you. Gull's Haven rises from mist — a narrow gate of carved stone stands on the shore."
+        ),
+        "choices": {
+            "approach_gate": {
+                "desc": "Step toward the carved gate.",
+                "result_scene": "gate",
+            },
+            "circle_coast": {
+                "desc": "Circle the island and look for a safe landing.",
+                "result_scene": "coast_search",
+            },
+        },
+    },
+    "gate": {
+        "title": "The Carved Gate",
+        "desc": (
+            "The gate hums faintly. Tide pulls at the sand like fingers. The gulls fall silent as if listening."
+        ),
+        "choices": {
+            "offer_idol": {
+                "desc": "Offer the idol or speak truth (if you have it).",
+                "result_scene": "offer_result",
+            },
+            "probe_gate": {
+                "desc": "Try to force the gate open (risky).",
+                "result_scene": "force_result",
+            },
+            "retreat": {
+                "desc": "Retreat to consider.",
+                "result_scene": "sail_to_isle",
+            },
+        },
+    },
+    "offer_result": {
+        "title": "Tide's Answer",
+        "desc": (
+            "If you offer the idol with truth, the gate may yield. If you bluff, the gate may remain closed — or worse."
+        ),
+        "choices": {
+            "truth": {
+                "desc": "Offer truth and the idol.",
+                "result_scene": "resolve_good",
+                "effects": {"add_journal": "Offered the idol truthfully at the gate."},
+            },
+            "bluff": {
+                "desc": "Bluff or force the offering.",
+                "result_scene": "resolve_mixed",
+            },
+        },
+    },
+    "force_result": {
+        "title": "Forcing the Gate",
+        "desc": (
+            "Forcing the gate is dangerous — the tide fights back, and a shape moves beneath the water."
+        ),
+        "choices": {
+            "push": {
+                "desc": "Push hard to force the gate (risky).",
+                "result_scene": "fight_sea",
+            },
+            "step_back": {
+                "desc": "Step back and rethink.",
+                "result_scene": "sail_to_isle",
+            },
+        },
+    },
+    "resolve_good": {
+        "title": "A Gentle Reprieve",
+        "desc": (
+            "The gate opens with a sigh of seawind. Inside you find a small cove and a grateful whisper from the deep — a minor peace returns."
+        ),
+        "choices": {
+            "take_rest": {
+                "desc": "Rest in the cove and tend to wounds.",
+                "result_scene": "intro",
+            },
+            "seek_more": {
+                "desc": "Search the island for more secrets.",
+                "result_scene": "coast_search",
+            },
+        },
+    },
+    "resolve_mixed": {
+        "title": "Storm-Touched",
+        "desc": (
+            "The gate shifts but releases a spout of briny wind that chills the bones. You feel the island watch you."
+        ),
+        "choices": {
+            "press_on": {
+                "desc": "Press further into the grove.",
+                "result_scene": "coast_search",
+            },
+            "withdraw": {
+                "desc": "Withdraw to your skiff.",
+                "result_scene": "sail_to_isle",
+            },
+        },
+    },
+    "fight_sea": {
+        "title": "Tide and Teeth",
+        "desc": (
+            "Something beneath the waves lashes out — a hulking maw of barnacled teeth. You must react."
+        ),
+        "choices": {
+            "fight": {
+                "desc": "Stand and fight the sea shape (risky).",
+                "result_scene": "fight_end",
+            },
+            "flee": {
+                "desc": "Flee to the skiff and row away.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "fight_end": {
+        "title": "After the Clash",
+        "desc": (
+            "You survive the clash and wash ashore exhausted. A small carved token lies in the sand — perhaps the relic the island wanted."
+        ),
+        "choices": {
+            "take_token": {
+                "desc": "Take the carved token and keep its lesson.",
+                "result_scene": "reward",
+                "effects": {"add_inventory": "carved_token", "add_journal": "Recovered carved token after sea clash."},
+            },
+            "leave": {
+                "desc": "Leave the token and tend to yourself.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "isle_choice": {
+        "title": "Decision at the Isle",
+        "desc": (
+            "With the idol in hand you must choose: return it at the gate or hide it for profit. The gulls watch."
+        ),
+        "choices": {
+            "return_idol": {
+                "desc": "Return the idol at the gate (truth).",
+                "result_scene": "resolve_good",
+            },
+            "sell_idol": {
+                "desc": "Keep and sell the idol for coin.",
+                "result_scene": "resolve_mixed",
+            },
+        },
+    },
+    "coast_search": {
+        "title": "Coastline Secrets",
+        "desc": (
+            "You walk where tidewater carved hollows; old footprints and a half-buried oar show others were here recently."
+        ),
+        "choices": {
+            "follow_tracks": {
+                "desc": "Follow the tracks inland.",
+                "result_scene": "gate",
+            },
+            "return_skiff": {
+                "desc": "Return to your skiff and consider leaving.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "escape_attempt": {
+        "title": "A Narrow Escape",
+        "desc": (
+            "You sprint with the chest. A cry rises — a patrol sees you but a sudden fog of salt gives you cover. You make it to the skiff breathless."
+        ),
+        "choices": {
+            "row_away": {
+                "desc": "Row away from the brig and head to Gull's Haven.",
+                "result_scene": "sail_to_isle",
+            },
+            "hide": {
+                "desc": "Hide until the coast clears.",
+                "result_scene": "intro",
+            },
+        },
+    },
+    "hide_result": {
+        "title": "Hiding in Shadow",
+        "desc": (
+            "You drop and press into shadow. The patrol passes by with a curse; you remain unseen."
+        ),
+        "choices": {
+            "wait": {
+                "desc": "Wait until it is safe.",
+                "result_scene": "intro",
+            },
+            "sneak_off": {
+                "desc": "Sneak off while they search elsewhere.",
+                "result_scene": "sail_to_isle",
+            },
+        },
+    },
+    "reward": {
+        "title": "A Pirate's Quiet Victory",
+        "desc": (
+            "The tide calms. You hold an object tied to the island's memory. Whether you return it or keep it, the sea remembers you now."
+        ),
+        "choices": {
+            "end_session": {
+                "desc": "End the session and let the sea carry the rest.",
+                "result_scene": "intro",
+            },
+            "keep_exploring": {
+                "desc": "Keep sailing for new horizons.",
+                "result_scene": "intro",
+            },
+        },
+    }
 }
 
-def seed_catalog_if_missing():
-    catalog = load_json(CATALOG_FILE, SAMPLE_CATALOG)
-    if "items" not in catalog or not catalog["items"]:
-        save_json(CATALOG_FILE, SAMPLE_CATALOG)
-        logger.info("✅ Seeded sample catalog.json for Tushar QuickCart")
-    else:
-        if "meta" not in catalog:
-            catalog["meta"] = SAMPLE_CATALOG["meta"]
-            save_json(CATALOG_FILE, catalog)
-
-def ensure_orders_file():
-    orders = load_json(ORDERS_FILE, [])
-    if not isinstance(orders, list):
-        save_json(ORDERS_FILE, [])
-
-seed_catalog_if_missing()
-ensure_orders_file()
-
 # -------------------------
-# Models & userdata
+# Per-session userdata
 # -------------------------
-@dataclass
-class CartItem:
-    item_id: str
-    name: str
-    unit_price: float
-    quantity: int = 1
-    notes: str = ""
-
 @dataclass
 class Userdata:
-    cart: List[CartItem] = field(default_factory=list)
-    customer_name: Optional[str] = None
-    last_order_id: Optional[str] = None
+    player_name: Optional[str] = None
+    current_scene: str = "intro"
+    history: List[Dict[str, Any]] = field(default_factory=list)  # transitions
+    journal: List[str] = field(default_factory=list)
+    inventory: List[str] = field(default_factory=list)
+    named_npcs: Dict[str, str] = field(default_factory=dict)
+    choices_made: List[str] = field(default_factory=list)
+    attributes: Dict[str, int] = field(default_factory=lambda: {"STR": 10, "DEX": 14, "INT": 11, "WIS": 13, "CHA": 9})
+    session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    started_at: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
 
 # -------------------------
-# Recipe map & helpers
+# Dice & check helpers
 # -------------------------
-RECIPE_MAP = {
-    "chai": ["milk-amul-1l", "tea-250g", "sugar-1kg", "ginger-100g"],
-    "maggi": ["maggi-masala"],
-    "paneer butter masala": ["paneer-200g", "butter-100g", "tomato-1kg"],
-    "dal chawal": ["dal-toor-1kg", "rice-basmati-1kg"],
+def roll_d20() -> int:
+    return random.randint(1, 20)
+
+def attr_modifier(val: int) -> int:
+    return (val - 10) // 2
+
+def resolve_check(attr_val: int, modifier: int = 0, difficulty: int = 12) -> Dict[str, Any]:
+    r = roll_d20()
+    mod = attr_modifier(attr_val)
+    total = r + mod + modifier
+    if total >= difficulty + 4:
+        tier = "Full success"
+    elif total >= difficulty:
+        tier = "Partial success"
+    else:
+        tier = "Fail"
+    return {"roll": r, "attr_mod": mod, "modifier": modifier, "total": total, "tier": tier, "difficulty": difficulty}
+
+ACTION_ATTR_MAP = {
+    "sneak": "DEX", "stealth": "DEX", "hide": "DEX",
+    "attack": "STR", "hit": "STR", "lift": "STR", "climb": "STR",
+    "persuade": "CHA", "charm": "CHA", "intimidate": "CHA",
+    "investigate": "INT", "search": "INT", "examine": "INT",
+    "listen": "WIS", "notice": "WIS", "perceive": "WIS",
+    "heal": "WIS", "cast": "INT", "spell": "INT"
 }
 
-_NUMBER_WORDS = {
-    'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
-    'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
-}
-
-def _parse_servings_from_text(text: str) -> int:
-    text = (text or "").lower()
-    m = re.search(r"for\s+(\d+)", text)
-    if m:
-        try:
-            return max(1, int(m.group(1)))
-        except Exception:
-            pass
-    for w,num in _NUMBER_WORDS.items():
-        if f"for {w}" in text:
-            return num
-    return 1
-
-# -------------------------
-# Fuzzy search helpers
-# -------------------------
-def _normalize_text(s: str) -> str:
-    s = (s or "").lower().strip()
-    s = s.translate(str.maketrans("", "", string.punctuation))
-    # simple plural -> singular attempt: potatoes->potato, tomatoes->tomato
-    if s.endswith("ies"):
-        s = s[:-3] + "y"
-    elif s.endswith("oes"):
-        s = s[:-2]
-    elif s.endswith("es") and len(s) > 4:
-        s = s[:-2]
-    elif s.endswith("s") and len(s) > 3:
-        s = s[:-1]
-    # replace bilingual synonyms
-    s = s.replace("tamatar", "tomato").replace("aloo", "potato").replace("pyaz", "onion").replace("adrak", "ginger")
-    return s
-
-def _similar(a: str, b: str) -> float:
-    return SequenceMatcher(None, a, b).ratio()
-
-def _search_items_fuzzy(query: str, limit=20, threshold=0.55):
-    """
-    Returns list of matching items (dicts) from catalog using a combination of:
-    - exact substring match
-    - tag match
-    - fuzzy name match via SequenceMatcher
-    """
-    q = _normalize_text(query)
-    catalog = load_json(CATALOG_FILE, SAMPLE_CATALOG)
-    items = catalog.get("items", [])
-    scored = []
-    for it in items:
-        name_norm = _normalize_text(it.get("name",""))
-        id_norm = _normalize_text(it.get("id",""))
-        tags = [ _normalize_text(t) for t in it.get("tags",[]) ]
-        score = 0.0
-        # exact id or name substring
-        if q in name_norm or q in id_norm or any(q == t or q in t for t in tags):
-            score += 1.0
-        # partial substring
-        if q in name_norm:
-            score += 0.8
-        # tag match boosts
-        if any(q in t for t in tags):
-            score += 0.6
-        # fuzzy match on name
-        sim = _similar(q, name_norm)
-        if sim > threshold:
-            score += sim
-        # also allow close matches using difflib
-        close = get_close_matches(q, [name_norm] + tags + [id_norm], n=1, cutoff=threshold)
-        if close:
-            score += 0.5
-        if score > 0:
-            scored.append((score, it))
-    # sort by score descending then return top
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return [it for _,it in scored][:limit]
-
-# -------------------------
-# Orders JSON helpers
-# -------------------------
-def append_order_json(order_obj: dict):
-    orders = load_json(ORDERS_FILE, [])
-    orders.append(order_obj)
-    save_json(ORDERS_FILE, orders)
-
-def update_order_json(order_id: str, **kwargs) -> bool:
-    orders = load_json(ORDERS_FILE, [])
-    changed = False
-    for o in orders:
-        if o.get("order_id") == order_id:
-            o.update(kwargs)
-            o["updated_at"] = datetime.utcnow().isoformat() + "Z"
-            changed = True
-            break
-    if changed:
-        save_json(ORDERS_FILE, orders)
-    return changed
-
-def get_order_json(order_id: str) -> Optional[dict]:
-    orders = load_json(ORDERS_FILE, [])
-    for o in orders:
-        if o.get("order_id") == order_id:
-            return o
+def detect_risky_action(text: str) -> Optional[str]:
+    t = (text or "").lower()
+    for kw, attr in ACTION_ATTR_MAP.items():
+        if kw in t:
+            return attr
+    if any(w in t for w in ["attempt", "try", "risk", "chance", "roll"]):
+        return "DEX"
     return None
 
-def list_orders_json(limit=10, customer_name: Optional[str]=None):
-    orders = load_json(ORDERS_FILE, [])
-    if customer_name:
-        return [o for o in reversed(orders) if o.get("customer_name","").lower()==customer_name.lower()][:limit]
-    return list(reversed(orders))[:limit]
+# -------------------------
+# Scene helpers & effects
+# -------------------------
+def scene_text(scene_key: str, userdata: Userdata) -> str:
+    scene = WORLD.get(scene_key)
+    if not scene:
+        return "You find only shadows. What do you do?"
+    desc = f"{scene['desc']}\n\nChoices:\n"
+    for cid, cmeta in scene.get("choices", {}).items():
+        desc += f"- {cmeta['desc']} (say: {cid})\n"
+    desc += "\nWhat do you do?"
+    return desc
+
+def apply_effects(effects: Dict[str, Any], userdata: Userdata):
+    if not effects:
+        return
+    if "add_journal" in effects:
+        userdata.journal.append(effects["add_journal"])
+    if "add_inventory" in effects:
+        userdata.inventory.append(effects["add_inventory"])
+
+def summarize_transition(old_scene: str, action_key: str, result_scene: str, userdata: Userdata) -> str:
+    entry = {"from": old_scene, "action": action_key, "to": result_scene, "time": datetime.utcnow().isoformat() + "Z"}
+    userdata.history.append(entry)
+    userdata.choices_made.append(action_key)
+    return f"You chose '{action_key}'."
 
 # -------------------------
-# Simulation background
+# Fallback narrators (if LLM not configured)
 # -------------------------
-STATUS_FLOW = ["received", "confirmed", "shipped", "out_for_delivery", "delivered"]
-
-async def simulate_delivery_flow(order_id: str):
-    logger.info(f"🔄 [Simulation] Starting simulation for {order_id}")
-    await asyncio.sleep(5)
-    for status in STATUS_FLOW[1:]:
-        o = get_order_json(order_id)
-        if not o:
-            logger.info(f"⚠️ Order {order_id} missing; stopping simulation.")
-            return
-        if o.get("status") == "cancelled":
-            logger.info(f"🛑 [Simulation] Order {order_id} cancelled; stopping.")
-            return
-        update_order_json(order_id, status=status)
-        logger.info(f"🚚 [Simulation] Order {order_id} -> {status}")
-        await asyncio.sleep(5)
-    logger.info(f"✅ [Simulation] Order {order_id} delivered.")
-
-# -------------------------
-# Cart helpers
-# -------------------------
-def cart_total(cart: List[CartItem]) -> float:
-    return round(sum(ci.unit_price * ci.quantity for ci in cart), 2)
-
-# -------------------------
-# AGENT TOOLS (function_tool) - USE FUZZY SEARCH
-# -------------------------
-@function_tool
-async def find_item(ctx: RunContext[Userdata], query: Annotated[str, Field(description="Name or partial name (e.g. 'milk')")]) -> str:
-    matches = _search_items_fuzzy(query)
-    if not matches:
-        return f"Sorry, I couldn't find \"{query}\" in our catalog. Would you like to try a similar item or a different name?"
-    lines = []
-    for it in matches[:10]:
-        lines.append(f"- {it['name']} (id: {it['id']}) — ₹{it['price']:.2f} — {it.get('size','')}")
-    return "Found:\n" + "\n".join(lines) + "\nWhat would you like to add to your cart?"
-
-@function_tool
-async def add_to_cart(ctx: RunContext[Userdata], item_id: Annotated[str, Field(description="Catalog item id or name")], quantity: Annotated[int, Field(description="Quantity", default=1)] = 1, notes: Annotated[str, Field(description="Optional notes")] = "") -> str:
-    # allow item_id to be fuzzy name too
-    # if id not found, try fuzzy search and pick top match
-    item = _find_item_by_id(item_id) if isinstance(item_id, str) and "-" in item_id else None
-    if not item:
-        fuzzy = _search_items_fuzzy(item_id, limit=1)
-        if fuzzy:
-            item = fuzzy[0]
-    if not item:
-        return f"Item '{item_id}' not found in catalog."
-    # merge if exists
-    for ci in ctx.userdata.cart:
-        if ci.item_id.lower() == item["id"].lower():
-            ci.quantity += int(quantity)
-            if notes:
-                ci.notes = notes
-            total = cart_total(ctx.userdata.cart)
-            return f"Updated '{ci.name}' to {ci.quantity}. Cart total: ₹{total:.2f}"
-    ci = CartItem(item_id=item["id"], name=item["name"], unit_price=float(item["price"]), quantity=int(quantity), notes=notes)
-    ctx.userdata.cart.append(ci)
-    total = cart_total(ctx.userdata.cart)
-    return f"Added {quantity} x '{ci.name}' to cart. Cart total: ₹{total:.2f}"
-
-# The rest of tools are same as previous file (remove_from_cart, update_cart_quantity, show_cart, add_recipe, ingredients_for, place_order, cancel_order, get_order_status, order_history)
-# For brevity we re-include them unchanged below.
-
-@function_tool
-async def remove_from_cart(ctx: RunContext[Userdata], item_id: Annotated[str, Field(description="Catalog item id")]) -> str:
-    before = len(ctx.userdata.cart)
-    ctx.userdata.cart = [ci for ci in ctx.userdata.cart if ci.item_id.lower() != item_id.lower()]
-    after = len(ctx.userdata.cart)
-    if before == after:
-        return f"Item '{item_id}' was not in your cart."
-    total = cart_total(ctx.userdata.cart)
-    return f"Removed item '{item_id}' from cart. Cart total: ₹{total:.2f}"
-
-@function_tool
-async def update_cart_quantity(ctx: RunContext[Userdata], item_id: Annotated[str, Field(description="Catalog item id")], quantity: Annotated[int, Field(description="New quantity")]) -> str:
-    if quantity < 1:
-        return await remove_from_cart(ctx, item_id)
-    for ci in ctx.userdata.cart:
-        if ci.item_id.lower() == item_id.lower():
-            ci.quantity = int(quantity)
-            total = cart_total(ctx.userdata.cart)
-            return f"Updated '{ci.name}' quantity to {ci.quantity}. Cart total: ₹{total:.2f}"
-    return f"Item '{item_id}' not found in cart."
-
-@function_tool
-async def show_cart(ctx: RunContext[Userdata]) -> str:
-    if not ctx.userdata.cart:
-        return "Your cart is empty."
-    lines = []
-    for ci in ctx.userdata.cart:
-        lines.append(f"- {ci.quantity} x {ci.name} @ ₹{ci.unit_price:.2f} each = ₹{ci.unit_price * ci.quantity:.2f}")
-    total = cart_total(ctx.userdata.cart)
-    return "Your cart:\n" + "\n".join(lines) + f"\nTotal: ₹{total:.2f}"
-
-@function_tool
-async def add_recipe(ctx: RunContext[Userdata], dish_name: Annotated[str, Field(description="Dish name like 'chai'")]) -> str:
-    key = dish_name.strip().lower()
-    if key not in RECIPE_MAP:
-        return f"No recipe for '{dish_name}'. Try 'chai', 'maggi', or 'paneer butter masala'."
-    added = []
-    for iid in RECIPE_MAP[key]:
-        it = _find_item_by_id(iid)
-        if not it:
-            continue
-        found = False
-        for ci in ctx.userdata.cart:
-            if ci.item_id.lower() == iid.lower():
-                ci.quantity += 1
-                found = True
-                break
-        if not found:
-            ctx.userdata.cart.append(CartItem(item_id=it["id"], name=it["name"], unit_price=float(it["price"]), quantity=1))
-        added.append(it["name"])
-    total = cart_total(ctx.userdata.cart)
-    return f"Added ingredients for '{dish_name}': {', '.join(added)}. Cart total: ₹{total:.2f}"
-
-@function_tool
-async def ingredients_for(ctx: RunContext[Userdata], request: Annotated[str, Field(description="NL request like 'ingredients for chai for two'")]) -> str:
-    text = (request or "").strip()
-    servings = _parse_servings_from_text(text)
-    m = re.search(r"ingredients? for (.+)", text, re.I)
-    dish = m.group(1) if m else text
-    dish = re.sub(r"for\s+\w+(?: people| person| persons)?", "", dish, flags=re.I).strip()
-    key = dish.lower()
-    item_ids = []
-    if key in RECIPE_MAP:
-        item_ids = RECIPE_MAP[key]
+def fallback_gm_narration_with_roll(player_text: str, roll_info: Optional[Dict[str, Any]], userdata: Userdata) -> str:
+    name = userdata.player_name or "You"
+    intro = f"{name}, you said: \"{player_text}\".\n"
+    if roll_info:
+        tier = roll_info["tier"]
+        roll_line = f"(Roll: {roll_info['roll']}  +{roll_info['attr_mod']} = {roll_info['total']} vs DC {roll_info['difficulty']})"
+        if tier == "Full success":
+            outcome = f"{roll_line} — You succeed brilliantly. Things go in your favor."
+        elif tier == "Partial success":
+            outcome = f"{roll_line} — You succeed, but with a complication."
+        else:
+            outcome = f"{roll_line} — You fail; consequences follow."
+        body = outcome
     else:
-        found = _search_items_fuzzy(dish, limit=6)
-        item_ids = [f["id"] for f in found]
-    if not item_ids:
-        return f"Sorry, couldn't find ingredients for '{request}'. Try simpler phrasing."
-    added = []
-    for iid in item_ids:
-        it = _find_item_by_id(iid)
-        if not it:
-            continue
-        found = False
-        for ci in ctx.userdata.cart:
-            if ci.item_id.lower() == iid.lower():
-                ci.quantity += servings
-                found = True
+        body = "You move forward; the world responds in small ways."
+    return f"{intro}\n{body}\n\nWhat do you do?"
+
+def fallback_gm_simple_intro(userdata: Userdata) -> str:
+    name = userdata.player_name or "Traveler"
+    intro = f"Greetings {name}. {WORLD.get('intro',{}).get('desc','You stand at the shore.')}\n\nWhat do you do?"
+    return intro
+
+# -------------------------
+# Tools (function_tool)
+# -------------------------
+@function_tool
+async def start_adventure(ctx: RunContext[Userdata], player_name: Annotated[Optional[str], Field(description="Player name", default=None)] = None) -> str:
+    u = ctx.userdata
+    if player_name:
+        u.player_name = player_name
+    u.current_scene = "intro"
+    u.history = []
+    u.journal = []
+    u.inventory = []
+    u.named_npcs = {}
+    u.choices_made = []
+    u.session_id = str(uuid.uuid4())[:8]
+    u.started_at = datetime.utcnow().isoformat() + "Z"
+    opening = fallback_gm_simple_intro(u)
+    if not opening.strip().endswith("What do you do?"):
+        opening = opening.strip() + "\n\nWhat do you do?"
+    u.history.append({"from": None, "action": "start", "to": "intro", "time": datetime.utcnow().isoformat() + "Z"})
+    return opening
+
+@function_tool
+async def get_scene(ctx: RunContext[Userdata]) -> str:
+    u = ctx.userdata
+    return scene_text(u.current_scene or "intro", u)
+
+@function_tool
+async def get_world_state(ctx: RunContext[Userdata]) -> str:
+    u = ctx.userdata
+    return json.dumps({
+        "player_name": u.player_name,
+        "current_scene": u.current_scene,
+        "journal": u.journal,
+        "inventory": u.inventory,
+        "recent_history": u.history[-8:],
+        "attributes": u.attributes
+    }, indent=2)
+
+@function_tool
+async def player_action(ctx: RunContext[Userdata], action: Annotated[str, Field(description="Player spoken action or short code")]) -> str:
+    u = ctx.userdata
+    current = u.current_scene or "intro"
+    scene = WORLD.get(current, {})
+    text = (action or "").strip()
+    if not text:
+        return scene_text(current, u)
+
+    # Try to resolve choice key exactly
+    chosen_key = None
+    if text.lower() in (scene.get("choices") or {}):
+        chosen_key = text.lower()
+
+    # Try simple matching on choice descriptions
+    if not chosen_key:
+        for cid, cmeta in (scene.get("choices") or {}).items():
+            desc = cmeta.get("desc","").lower()
+            if cid in text.lower() or any(word in text.lower() for word in desc.split()[:4]):
+                chosen_key = cid
                 break
-        if not found:
-            ctx.userdata.cart.append(CartItem(item_id=it["id"], name=it["name"], unit_price=float(it["price"]), quantity=servings))
-        added.append(it["name"])
-    total = cart_total(ctx.userdata.cart)
-    return f"I've added {', '.join(added)} to your cart for '{dish}' (servings: {servings}). Cart total: ₹{total:.2f}"
+
+    # Keyword scanning fallback
+    if not chosen_key:
+        for cid, cmeta in (scene.get("choices") or {}).items():
+            for kw in cmeta.get("desc","").lower().split():
+                if kw and kw in text.lower():
+                    chosen_key = cid
+                    break
+            if chosen_key:
+                break
+
+    if not chosen_key:
+        # Could not map: treat it as a free action — attempt risky check if likely
+        attr = detect_risky_action(text)
+        roll_info = None
+        if attr:
+            attr_val = u.attributes.get(attr, 10)
+            difficulty = 12
+            if any(w in text.lower() for w in ["hard", "dangerous", "guarded", "trap", "strong"]):
+                difficulty += 2
+            roll_info = resolve_check(attr_val, modifier=0, difficulty=difficulty)
+            gm_reply = fallback_gm_narration_with_roll(text, roll_info, u)
+            u.history.append({"from": current, "action": text, "to": current, "time": datetime.utcnow().isoformat() + "Z", "roll": roll_info})
+            return gm_reply
+        # else ask for clarification
+        return "I didn't understand that. Try one of the visible choices or say a short phrase like 'inspect the box'.\n\n" + scene_text(current, u)
+
+    # We have a chosen_key: apply choice
+    choice_meta = scene["choices"].get(chosen_key, {})
+    result_scene = choice_meta.get("result_scene", current)
+    effects = choice_meta.get("effects", {})
+    apply_effects(effects or {}, u)
+    note = summarize_transition(current, chosen_key, result_scene, u)
+    u.current_scene = result_scene
+    persona = "The Game Master (soft, weathered voice) says:\n\n"
+    next_text = scene_text(result_scene, u)
+    reply = f"{persona}{note}\n\n{next_text}"
+    if not reply.strip().endswith("What do you do?"):
+        reply = reply.strip() + "\n\nWhat do you do?"
+    u.history.append({"from": current, "action": chosen_key, "to": result_scene, "time": datetime.utcnow().isoformat() + "Z"})
+    return reply
 
 @function_tool
-async def place_order(ctx: RunContext[Userdata], customer_name: Annotated[str, Field(description="Customer name")], address: Annotated[str, Field(description="Delivery address")]) -> str:
-    if not ctx.userdata.cart:
-        return "Your cart is empty."
-    order_id = str(uuid.uuid4())[:8]
-    placed_at = datetime.utcnow().isoformat() + "Z"
-    total = cart_total(ctx.userdata.cart)
-    order = {
-        "order_id": order_id,
-        "timestamp": placed_at,
-        "total": total,
-        "customer_name": customer_name,
-        "address": address,
-        "status": "received",
-        "created_at": placed_at,
-        "updated_at": placed_at,
-        "items": [{"item_id": ci.item_id, "name": ci.name, "quantity": ci.quantity, "unit_price": ci.unit_price, "notes": ci.notes} for ci in ctx.userdata.cart]
-    }
-    append_order_json(order)
-    ctx.userdata.cart = []
-    ctx.userdata.customer_name = customer_name
-    ctx.userdata.last_order_id = order_id
-    try:
-        asyncio.create_task(simulate_delivery_flow(order_id))
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.get_event_loop().call_soon_threadsafe(lambda: asyncio.create_task(simulate_delivery_flow(order_id)))
-    return f"Order placed! ID: {order_id}. Total: ₹{total:.2f}. Tracking will update automatically."
-
-@function_tool
-async def cancel_order(ctx: RunContext[Userdata], order_id: Annotated[str, Field(description="Order ID to cancel")]) -> str:
-    o = get_order_json(order_id)
-    if not o:
-        return f"No order found with id {order_id}."
-    status = o.get("status")
-    if status == "delivered":
-        return f"Order {order_id} already delivered; cannot cancel."
-    if status == "cancelled":
-        return f"Order {order_id} is already cancelled."
-    update_order_json(order_id, status="cancelled")
-    return f"Order {order_id} has been cancelled."
-
-@function_tool
-async def get_order_status(ctx: RunContext[Userdata], order_id: Annotated[str, Field(description="Order ID to check")]) -> str:
-    o = get_order_json(order_id)
-    if not o:
-        return f"No order found with id {order_id}."
-    return f"Order {order_id} status: {o.get('status')}. Last updated: {o.get('updated_at')}"
-
-@function_tool
-async def order_history(ctx: RunContext[Userdata], customer_name: Annotated[Optional[str], Field(description="Optional customer name")] = None) -> str:
-    rows = list_orders_json(limit=5, customer_name=customer_name)
-    if not rows:
-        return "No orders found."
+async def show_journal(ctx: RunContext[Userdata]) -> str:
+    u = ctx.userdata
     lines = []
-    for r in rows:
-        lines.append(f"- {r['order_id']} | ₹{r['total']:.2f} | {r.get('status')} | {r.get('created_at')}")
-    prefix = "Recent Orders"
-    if customer_name:
-        prefix += f" for {customer_name}"
-    return prefix + ":\n" + "\n".join(lines)
+    lines.append(f"Session: {u.session_id} | Started: {u.started_at}")
+    if u.player_name:
+        lines.append(f"Player: {u.player_name}")
+    lines.append("\nJournal:")
+    if u.journal:
+        for j in u.journal:
+            lines.append(f"- {j}")
+    else:
+        lines.append("- (empty)")
+    lines.append("\nInventory:")
+    if u.inventory:
+        for it in u.inventory:
+            lines.append(f"- {it}")
+    else:
+        lines.append("- (empty)")
+    lines.append("\nRecent actions:")
+    for h in u.history[-6:]:
+        lines.append(f"- {h.get('time')} | {h.get('from')} -> {h.get('to')} via {h.get('action')}")
+    lines.append("\nWhat do you do?")
+    return "\n".join(lines)
+
+@function_tool
+async def restart_adventure(ctx: RunContext[Userdata]) -> str:
+    u = ctx.userdata
+    u.current_scene = "intro"
+    u.history = []
+    u.journal = []
+    u.inventory = []
+    u.named_npcs = {}
+    u.choices_made = []
+    u.session_id = str(uuid.uuid4())[:8]
+    u.started_at = datetime.utcnow().isoformat() + "Z"
+    greeting = fallback_gm_simple_intro(u)
+    if not greeting.strip().endswith("What do you do?"):
+        greeting = greeting.strip() + "\n\nWhat do you do?"
+    return greeting
 
 # -------------------------
-# Agent Definition (assistant name: Amit)
+# Agent definition (pirate-themed instructions)
 # -------------------------
-class FoodAgent(Agent):
+class GameMasterAgent(Agent):
     def __init__(self):
-        super().__init__(
-            instructions="""
-            You are 'Amit', assistant for 'Tushar QuickCart' (Indian grocery).
-            - Help users search catalog, add to cart, add recipe ingredients, place orders.
-            - When placing order ask for name and address, then confirm placement.
-            - Support cancelling orders if not delivered.
-            - Support 'where is my order' using simulated tracking (advances automatically).
-            Be polite, confirm cart changes, and ask clarifying questions when necessary.
-            """,
-            tools=[find_item, add_to_cart, remove_from_cart, update_cart_quantity, show_cart, add_recipe, ingredients_for, place_order, cancel_order, get_order_status, order_history],
-        )
+        instructions = """
+        You are 'Aurek', the Game Master (GM) for a voice-first, seafaring pirate adventure.
+        Universe: High-seas pirate fantasy (islands, brigantines, reef traps, sea-spirits).
+        Tone: Playful, adventurous, and slightly mysterious — keep it cinematic but easy to speak.
+        Role: Narrate scenes vividly, remember the player's past choices, inventory, named places and small NPC details,
+              and ALWAYS end messages with the question: 'What do you do?'
+        Rules:
+         - Use the provided tools (start_adventure, get_scene, player_action, show_journal, restart_adventure, get_world_state).
+         - When a player's action is risky, expect the backend to run a d20 check and include the roll result; incorporate the result into the narration (Full success / Partial success / Fail).
+         - Keep spoken replies short enough for natural TTS (2–4 short paragraphs), evocative but not overloaded.
+         - Do not reference or impersonate copyrighted characters or direct franchise lines.
+        """
+        super().__init__(instructions=instructions, tools=[start_adventure, get_scene, player_action, show_journal, restart_adventure, get_world_state])
 
 # -------------------------
-# Entrypoint
+# Entrypoint & prewarm
 # -------------------------
 def prewarm(proc: JobProcess):
     try:
         proc.userdata["vad"] = silero.VAD.load()
     except Exception:
-        logger.warning("VAD prewarm failed; continuing.")
+        logger.warning("VAD prewarm failed; proceeding without preloaded VAD.")
 
 async def entrypoint(ctx: JobContext):
     ctx.log_context_fields = {"room": ctx.room.name}
-    logger.info("🚀 STARTING TUSHAR QUICKCART (JSON backend) — assistant: Amit (fuzzy search enabled)")
+    logger.info("🚀 STARTING DAY 8 VOICE GAME MASTER — Pirate Mini-Arc")
     userdata = Userdata()
     session = AgentSession(
         stt=deepgram.STT(model="nova-3"),
@@ -530,8 +822,32 @@ async def entrypoint(ctx: JobContext):
         vad=ctx.proc.userdata.get("vad"),
         userdata=userdata,
     )
-    await session.start(agent=FoodAgent(), room=ctx.room, room_input_options=RoomInputOptions(noise_cancellation=noise_cancellation.BVC()))
+    await session.start(agent=GameMasterAgent(), room=ctx.room, room_input_options=RoomInputOptions(noise_cancellation=noise_cancellation.BVC()))
     await ctx.connect()
 
+# -------------------------
+# DEV_SMOKE: quick local test (no LiveKit). Set DEV_SMOKE=1 in .env.local to run this on `python agent.py`.
+# -------------------------
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
+    if os.getenv("DEV_SMOKE"):
+        import asyncio
+        class DummyCtx:
+            pass
+        async def smoke():
+            print("DEV_SMOKE: starting local simulation of Game Master agent tools.\n")
+            ctx = DummyCtx()
+            ctx.userdata = Userdata()
+            print("=== start_adventure ===")
+            print(await start_adventure(ctx, player_name="Tushar"), "\n")
+            print("=== player_action: read_map ===")
+            print(await player_action(ctx, "read_map"), "\n")
+            print("=== player_action: tuck_map ===")
+            print(await player_action(ctx, "tuck_map"), "\n")
+            print("=== player_action: board ===")
+            print(await player_action(ctx, "board"), "\n")
+            print("=== show_journal ===")
+            print(await show_journal(ctx), "\n")
+            print("DEV_SMOKE done.")
+        asyncio.run(smoke())
+    else:
+        cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
