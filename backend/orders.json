@@ -1,0 +1,104 @@
+[
+  {
+    "id": "order-7ee7c085",
+    "items": [
+      {
+        "product_id": "hoodie-001",
+        "name": "Cozy Hoodie",
+        "unit_price": 1499,
+        "quantity": 1,
+        "line_total": 1499,
+        "attrs": {
+          "size": "M"
+        }
+      },
+      {
+        "product_id": "mug-001",
+        "name": "Stoneware Chai Mug",
+        "unit_price": 299,
+        "quantity": 1,
+        "line_total": 299,
+        "attrs": {}
+      }
+    ],
+    "total": 1798,
+    "currency": "INR",
+    "created_at": "2025-11-30T11:51:07.886829Z"
+  },
+  {
+    "id": "order-a7a3ac98",
+    "items": [
+      {
+        "product_id": "hoodie-001",
+        "name": "Cozy Hoodie",
+        "unit_price": 1499,
+        "quantity": 1,
+        "line_total": 1499,
+        "attrs": {
+          "size": "M"
+        }
+      },
+      {
+        "product_id": "mug-001",
+        "name": "Stoneware Chai Mug",
+        "unit_price": 299,
+        "quantity": 1,
+        "line_total": 299,
+        "attrs": {}
+      }
+    ],
+    "total": 1798,
+    "currency": "INR",
+    "created_at": "2025-11-30T12:19:09.778151Z"
+  },
+  {
+    "id": "order-3b7a722a",
+    "items": [
+      {
+        "product_id": "shoes-001",
+        "name": "Everyday Sneakers",
+        "unit_price": 1499,
+        "quantity": 1,
+        "line_total": 1499,
+        "attrs": {}
+      },
+      {
+        "product_id": "phone-004",
+        "name": "iPhone (Standard)",
+        "unit_price": 50000,
+        "quantity": 1,
+        "line_total": 50000,
+        "attrs": {}
+      },
+      {
+        "product_id": "rain-001",
+        "name": "Light Raincoat",
+        "unit_price": 1299,
+        "quantity": 1,
+        "line_total": 1299,
+        "attrs": {
+          "size": "M"
+        }
+      },
+      {
+        "product_id": "hoodie-001",
+        "name": "Cozy Hoodie",
+        "unit_price": 1499,
+        "quantity": 1,
+        "line_total": 1499,
+        "attrs": {}
+      },
+      {
+        "product_id": "laptop-004",
+        "name": "HP Pavilion",
+        "unit_price": 100000,
+        "quantity": 1,
+        "line_total": 100000,
+        "attrs": {}
+      }
+    ],
+    "total": 154297,
+    "currency": "INR",
+    "created_at": "2025-11-30T12:45:14.520750Z"
+  }
+]
