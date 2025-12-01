@@ -1,98 +1,175 @@
-# 📘 Day 7 – Fraud Alert AI Voice Agent
+# 🎭 Day 10 – AI Voice Improv Battle Agent (Grand Line Edition)
 
-10 Days of AI Voice Agents Challenge – Murf Falcon + LiveKit
+Welcome to the grand finale of my 10 Days of AI Voice Agents Challenge —
+and for the final build, I went full anime × pirate energy! 🏴‍☠️🔥
 
-# 📌 Overview
+Today, I built a complete AI Improv Battle Voice Agent inspired by One Piece–style adventure shows — powered by
+Murf Falcon TTS + LiveKit Agents + Gemini + Deepgram.
 
-Day 7 continues the development of the Fraud Alert Voice Agent, designed to simulate a real bank fraud verification call.
+This agent behaves like a dramatic anime host / pirate captain and guides the user through 3 rounds of improv acting.
 
-The agent speaks naturally, verifies the user, explains the suspicious transaction, and updates the fraud status in real time.
-All data is stored inside a JSON-based database for easy persistence.
+This project combines:
 
-This is the standard version — clean, simple, and fully functional.
+Real-time voice recognition
 
-# 🚀 Features
-1. Fraud Verification Call Flow
+Scenario generation
 
-The agent performs a complete fraud verification workflow:
+State machine architecture
 
-Greets the user
+Live dialogue
 
-Asks for their name
+Pirate energy ⚔️😂
 
-Retrieves the fraud case from fraud_db.json
+#🚀 What This Agent Can Do
+```🧠 1. Runs a Full Improv Battle Show
 
-Reads the suspicious transaction
+The AI hosts a 3-round improv game, each round containing:
 
-Asks: “Was this you?”
+🎭 A new story scenario
 
-Marks the transaction as fraud or genuine
+🎤 User’s performance (live speech)
 
-Returns a clear summary at the end
+⚡ The AI’s dramatic reaction
 
-2. JSON Fraud Database
-
-All fraud cases are stored inside fraud_db.json, including:
-
-User profile
-
-Suspicious transaction details
-
-Current status (pending → fraud/genuine)
-
-Timestamp of the update
-
-3. Natural Conversation Handling
-
-The agent understands and responds to:
-
-“Yes” → Mark as genuine
-
-“No” → Mark as fraud
-
-“Repeat” → Read the transaction again
-
-“Stop” → End the call with a summary
-
-No complex logic — just smooth, realistic communication.
-
-4. Real-Time Voice Pipeline
-
-Built with a reliable low-latency stack:
-
-Deepgram – Speech-to-Text
-
-Murf Falcon – Ultra-fast voice output
-
-Gemini 2.5 Flash – LLM reasoning
-
-LiveKit Agents – Real-time audio interaction
-
-# 📂 Project Structure
-```/day-7
-│
-├── agent.py          # Main fraud agent logic
-├── fraud_db.json     # Fraud case database
-└── README.md         # Documentation
+🏁 Summary in the finale
 ```
-# ✅ What’s Working in Day 7
+# 🗺️ 2. Generates One Piece–Style Scenarios
 
-Full fraud alert workflow
+The agent creates energetic, anime-like prompts such as:
 
-Real-time STT → LLM → TTS pipeline
+A parrot telepathically leaking the captain’s secrets
 
-Natural yes/no decision-making
+Selling chopsticks to a stubborn swordsman
 
-Database write/update
+Navigating the ship toward a floating tea stall
 
-Clean final fraud summary
+Hosting a morale chant that makes an admiral cry laughing
 
-Smooth, human-like voice interaction
+Every scenario hits with the classic “grand adventure” vibe.
 
-# 📌 Notes
 
-This is the basic Day 7 version (as requested)
+# 🎤 3. Reacts to the Player’s Performance
 
-No multi-case handling or advanced fraud logic included
+After you act, the AI:
 
-Fully compatible with future upgrades
+Delivers supportive, neutral, or pirate-style critique
+
+References your lines
+
+Encourages you to push the energy
+
+Adds anime-style flair (“That spirit could split the sea!” ⚡)
+
+# 🔁 4. Maintains Full Session State
+
+Internally it tracks:
+
+Session ID
+
+Player name
+
+Current round
+
+Round transcript
+
+Reactions
+
+History & timing
+
+# 🎬 5. Finale Summary
+
+At the end, the AI creates:
+
+Highlights of each round
+
+Praise + critiques
+
+A pirate-style closing speech 🎉
+
+# 🧩 How It Works (Architecture)
+
+The system is built on a Python state machine, powered by:
+
+Tools (start_show, next_scenario, react_to_improv, end_show)
+
+Round progression logic
+
+Random scenario selection
+
+Reaction-style selector
+
+Transcript-based feedback engine
+
+Voice agent runtime handles:
+
+Speech detection
+
+STT → LLM → TTS loop
+
+Real-time messaging
+
+#🛠️ Tech Stack
+
+🔊 Voice & Speech
+
+Deepgram Nova-3 STT (speech-to-text)
+
+Murf Falcon TTS (Dramatic style, fast output)
+
+Silero VAD + Multilingual Turn Detection
+
+🧠 LLM
+
+Google Gemini 2.5 Flash
+
+☁️ Runtime
+
+LiveKit Agents
+
+⚙️ Logic Engine
+
+Custom Python improv engine
+
+State machine
+
+Scenario generator
+
+Reaction system
+
+Round management
+
+#📁 File Structure (Key Files)
+```
+backend/
+└── agent_onepiece_improv.py     # Main improv agent
+└── ... (runtime, modules, plugins)
+
+frontend/
+└── components/                  # UI (React)
+└── welcome-view.tsx
+└── session-view.tsx
+└── app.tsx
+```
+```
+# 🎮 How to Run Locally
+1️⃣ Install
+pip install -r requirements.txt
+npm install
+
+2️⃣ Start Backend
+python agent_onepiece_improv.py
+
+3️⃣ Start Frontend
+npm run dev
+
+4️⃣ Open App
+http://localhost:3000
+``` 
+# 🎉 Final Thoughts
+
+Day 10 was the wildest, funniest, and most challenging build of the whole series.
+Combining anime energy with voice-driven AI felt like building my own AI pirate show host.
+
+This marks the completion of my 10 Days of AI Voice Agents Challenge — what a journey! 🚀🔥
+
+🏷️ Tags
